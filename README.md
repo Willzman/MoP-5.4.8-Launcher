@@ -4,6 +4,10 @@ A Windows launcher for a World of Warcraft: Mists of Pandaria (5.4.8, build 1841
 It starts your own, unmodified game client and patches it **in memory** so it connects to the server.
 No game files are changed, and the patches are gone when the game closes.
 
+<p align="center">
+  <img src="docs/launcher.jpg" width="820" alt="Preview of the launcher window">
+</p>
+
 **[Download MoPLauncher.exe](https://github.com/Willzman/MoP-5.4.8-Launcher-/releases/latest/download/MoPLauncher.exe)**
 
 ## Playing
