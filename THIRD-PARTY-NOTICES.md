@@ -7,6 +7,12 @@ The in-memory client patches (`src/MoPLauncher/Patching`) are ported from the
 Copyright © Project SkyFire, licensed under GPL-3.0. This launcher is
 distributed under the same licence (see `LICENSE`).
 
+## StormLib
+
+The launcher embeds [StormLib](https://github.com/ladislav-zezula/StormLib),
+Copyright © Ladislav Zezula, under the MIT License, to read the game's MPQ
+archives.
+
 ## Fonts
 
 Cinzel and Source Sans 3, both under the SIL Open Font License 1.1. See
@@ -15,6 +21,7 @@ Cinzel and Source Sans 3, both under the SIL Open Font License 1.1. See
 ## Artwork
 
 The background and icon are original, drawn by `tools/make_art.py`. Nothing in
-this repository comes from the game. World of Warcraft and Mists of Pandaria
+this repository comes from the game; the login music is read from the
+player's own client at run time and is not distributed. World of Warcraft and Mists of Pandaria
 are trademarks of Blizzard Entertainment; this project is not affiliated with
 or endorsed by Blizzard.

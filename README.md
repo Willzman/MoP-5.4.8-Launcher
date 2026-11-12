@@ -25,6 +25,12 @@ The launcher checks this repository's releases when it starts. When a newer vers
 **Play** turns into **Update**: it downloads the new `MoPLauncher.exe`, checks its SHA-256,
 replaces itself and restarts. Nothing has to be reinstalled.
 
+## Music
+
+The launcher plays the Mists of Pandaria login screen music from your own game files
+(it reads the archives in the game's `Data` folder; nothing is downloaded or shipped).
+The **♪** button next to Play turns it on and off. It stops when the game starts.
+
 ## What it patches
 
 The patch set is the classic-login one from the
@@ -56,7 +62,8 @@ server** in Settings.
 
 ## Building
 
-Needs the .NET 10 SDK on Windows.
+Needs the .NET 10 SDK on Windows. For the login music, also CMake and Visual Studio's C++ tools,
+and run `tools/build-stormlib.ps1` once first (the launcher builds without it, minus the music).
 
 ```
 dotnet publish src/MoPLauncher/MoPLauncher.csproj -c Release -o publish

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Checks the launcher's MPQ reading against real archives made with
+       StormLib: finding the login music and extracting it byte for byte. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>MpqSmoke</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\MoPLauncher\Music\StormLib.cs" Link="StormLib.cs" />
+    <Compile Include="..\..\src\MoPLauncher\Music\ClientMusic.cs" Link="ClientMusic.cs" />
+    <EmbeddedResource Include="..\..\src\MoPLauncher\native\storm.dll" LogicalName="storm.dll" />
+  </ItemGroup>
+
+</Project>

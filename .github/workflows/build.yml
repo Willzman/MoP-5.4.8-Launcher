@@ -31,6 +31,13 @@ jobs:
           if (-not $version) { throw "No <Version> in MoPLauncher.csproj" }
           "version=$version" >> $env:GITHUB_OUTPUT
 
+      - name: Build StormLib
+        shell: pwsh
+        run: ./tools/build-stormlib.ps1
+
+      - name: Test archive reading
+        run: dotnet run --project tests/MpqSmoke/MpqSmoke.csproj -c Release
+
       - name: Publish
         run: dotnet publish src/MoPLauncher/MoPLauncher.csproj -c Release -o publish
 

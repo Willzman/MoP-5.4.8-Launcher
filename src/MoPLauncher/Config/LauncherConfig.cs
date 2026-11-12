@@ -24,6 +24,9 @@ public class LauncherConfig
     // world server runs on a different machine from the login server.
     public bool RedirectAllConnections { get; set; } = true;
 
+    // Plays the client's own login screen music while the launcher is open.
+    public bool MusicEnabled { get; set; } = true;
+
     // Returns the client executable to start, or null when the folder has none.
     public string? FindClientExecutable()
     {

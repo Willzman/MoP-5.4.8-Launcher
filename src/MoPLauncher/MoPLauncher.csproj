@@ -14,7 +14,7 @@
     <!-- The one place the launcher's version lives. Bump it (and add a
          CHANGELOG.md entry) and push to main: the workflow publishes a
          release, and every installed launcher offers the update. -->
-    <Version>1.1.0</Version>
+    <Version>1.2.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Copyright>GPL-3.0. Patches based on the Project SkyFire launcher.</Copyright>
 
@@ -34,6 +34,12 @@
     <Resource Include="Assets\icon.ico" />
     <Resource Include="Fonts\*.ttf" />
     <Resource Include="Fonts\*.otf" />
+  </ItemGroup>
+
+  <!-- StormLib, for reading the login music out of the client's archives.
+       Built by tools\build-stormlib.ps1; optional for local builds. -->
+  <ItemGroup Condition="Exists('native\storm.dll')">
+    <EmbeddedResource Include="native\storm.dll" LogicalName="storm.dll" />
   </ItemGroup>
 
 </Project>
