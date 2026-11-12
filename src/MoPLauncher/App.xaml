@@ -134,6 +134,32 @@
             </Setter>
         </Style>
 
+        <!-- The account or realm under Play; opens a list when there is a choice. -->
+        <Style x:Key="PickButton" TargetType="Button">
+            <Setter Property="FontFamily" Value="{StaticResource BodyFont}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <TextBlock x:Name="Label" Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}"
+                                   TextTrimming="CharacterEllipsis" Background="Transparent"
+                                   FontSize="{TemplateBinding FontSize}" Foreground="{TemplateBinding Foreground}"/>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Label" Property="Foreground" Value="#E8C36A"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Label" Property="Foreground" Value="#E8C36A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- A row in the ··· menu. -->
         <Style x:Key="MenuRow" TargetType="Button">
             <Setter Property="FontFamily" Value="{StaticResource BodyFont}"/>

@@ -47,6 +47,14 @@ into it for you; nothing extra is injected into the game for this.
 Under Play, the launcher shows **Last played: ACCOUNT - REALM**, read from what the game itself
 remembers in `WTF\Config.wtf`.
 
+The launcher remembers every account you save in Settings or log in with from the game, and
+every realm the game has been on. Once there is more than one account or realm, that part of the
+line becomes a drop-down (the label changes to **Play as:** when it differs from what was last
+played). The chosen account is filled in on the login screen and used for auto-login; the chosen
+realm is written to `realmName` in `WTF\Config.wtf`, which the game enters after login. To add
+an account, type its name and password in Settings and save; **Forget this account** removes one.
+Realm names are cleared when the server address changes.
+
 ## What it patches
 
 The patch set is the classic-login one from the
