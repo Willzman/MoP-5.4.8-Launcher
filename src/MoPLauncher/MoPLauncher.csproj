@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MoPLauncher</AssemblyName>
+    <RootNamespace>MoPLauncher</RootNamespace>
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- The one place the launcher's version lives. Bump it (and add a
+         CHANGELOG.md entry) and push to main: the workflow publishes a
+         release, and every installed launcher offers the update. -->
+    <Version>1.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Copyright>GPL-3.0. Patches based on the Project SkyFire launcher.</Copyright>
+
+    <!-- One self-contained exe: nothing to install, and the updater only
+         has a single file to swap. -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\background.jpg" />
+    <Resource Include="Assets\icon.ico" />
+    <Resource Include="Fonts\*.ttf" />
+    <Resource Include="Fonts\*.otf" />
+  </ItemGroup>
+
+</Project>
