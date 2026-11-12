@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.2.1
+
+- The ♪ button now opens a volume slider for the login music, with the on/off switch under it. The default is 50%.
+
 ## 1.2.0
 
 - Plays the Mists of Pandaria login screen music, read from your own game files. The ♪ button turns it on and off.
