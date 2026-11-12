@@ -154,18 +154,6 @@ def blossoms(img, tips):
     img.alpha_composite(crisp.filter(ImageFilter.GaussianBlur(0.7)))
 
 
-def petals(img, count):
-    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    for _ in range(count):
-        x, y = rng.uniform(0, W * 0.8), rng.uniform(H * 0.12, H * 0.92)
-        s = rng.uniform(5, 13)
-        p = Image.new("RGBA", (int(s * 3), int(s * 3)), (0, 0, 0, 0))
-        ImageDraw.Draw(p).ellipse([s * 0.4, s, s * 2.6, s * 2.0], fill=(250, 196, 204, rng.randint(120, 220)))
-        p = p.rotate(rng.uniform(0, 180), resample=Image.BICUBIC)
-        layer.alpha_composite(p, (int(x), int(y)))
-    img.alpha_composite(layer.filter(ImageFilter.GaussianBlur(1.1)))
-
-
 def peak_near(line, fx, span=0.09):
     a, b = int(W * (fx - span)), int(W * (fx + span))
     return a + int(np.argmin(line[a:b]))
@@ -200,7 +188,7 @@ def background():
     tips = []
     tree(img, W * 0.085, H * 0.86, 150, math.radians(78), 7, d, tips)
     blossoms(img, tips)
-    petals(img, 70)
+    # Falling petals are not painted in: the launcher animates them (PetalLayer.cs).
     # vignette, heavier on the left and bottom where the UI text sits
     yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
     xx /= W

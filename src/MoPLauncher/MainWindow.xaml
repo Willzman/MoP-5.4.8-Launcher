@@ -1,6 +1,7 @@
 <Window x:Class="MoPLauncher.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:MoPLauncher"
         Title="Mists of Pandaria Launcher"
         Width="1180" Height="720"
         MinWidth="1040" MinHeight="620"
@@ -21,6 +22,7 @@
         <!-- Artwork -->
         <Image Grid.RowSpan="2" Source="Assets/background.jpg" Stretch="UniformToFill"
                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <local:PetalLayer Grid.RowSpan="2"/>
 
         <!-- Title -->
         <StackPanel Grid.Row="0" Margin="44,34,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
