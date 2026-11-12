@@ -27,6 +27,7 @@ Run 'git checkout' { git -C $source checkout -q FETCH_HEAD }
 Run 'cmake configure' {
     cmake -S $source -B $build -A x64 `
         -DBUILD_SHARED_LIBS=ON -DSTORM_UNICODE=ON -DSTORM_SKIP_INSTALL=ON `
+        -DSTORM_USE_BUNDLED_LIBRARIES=ON `
         -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
 }
 Run 'cmake build' { cmake --build $build --config Release }
