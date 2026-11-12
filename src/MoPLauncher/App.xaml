@@ -186,6 +186,31 @@
             </Setter>
         </Style>
 
+        <Style x:Key="PasswordField" TargetType="PasswordBox">
+            <Setter Property="FontFamily" Value="{StaticResource BodyFont}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource TextBrush}"/>
+            <Setter Property="SelectionBrush" Value="#4FC3A1"/>
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="PasswordBox">
+                        <Border x:Name="Frame" Background="{StaticResource FieldBrush}"
+                                BorderBrush="{StaticResource FieldBorderBrush}" BorderThickness="1" CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="9,0" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Frame" Property="BorderBrush" Value="#E8C36A"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="FieldLabel" TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Margin" Value="0,18,0,6"/>

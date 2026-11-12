@@ -30,6 +30,31 @@ public static class ConfigWtf
         File.WriteAllLines(configPath, lines);
     }
 
+    // The value of a CVar, or null when the file or the CVar isn't there.
+    public static string? Get(string clientLocation, string cvarName)
+    {
+        try
+        {
+            var configPath = Path.Combine(clientLocation, "WTF", "Config.wtf");
+            if (!File.Exists(configPath))
+                return null;
+
+            var prefix = $"SET {cvarName} ";
+            foreach (var line in File.ReadLines(configPath))
+            {
+                var trimmed = line.Trim();
+                if (trimmed.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    return trimmed[prefix.Length..].Trim().Trim('"');
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            // Unreadable is the same as not there.
+        }
+
+        return null;
+    }
+
     public static void Remove(string clientLocation, string cvarName)
     {
         var configPath = Path.Combine(clientLocation, "WTF", "Config.wtf");

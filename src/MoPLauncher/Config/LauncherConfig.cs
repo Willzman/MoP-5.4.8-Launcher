@@ -30,6 +30,15 @@ public class LauncherConfig
     // 0 to 1.
     public double MusicVolume { get; set; } = 0.1;
 
+    // Filled in on the game's login screen when set.
+    public string AccountName { get; set; } = string.Empty;
+
+    // Auto-login: after Play, the launcher types the account's password into
+    // the game's login screen. The password is kept encrypted (see
+    // SavedPassword) and only while auto-login is on.
+    public bool AutoLogin { get; set; }
+    public string ProtectedPassword { get; set; } = string.Empty;
+
     // Returns the client executable to start, or null when the folder has none.
     public string? FindClientExecutable()
     {

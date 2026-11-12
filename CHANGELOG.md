@@ -3,6 +3,12 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.3.0
+
+- Auto-login: enter your account name and password in Settings and tick "Log in automatically". Play then logs you in once the game's login screen is up. The password is saved encrypted for your Windows account on this PC.
+- Shows "Last played: ACCOUNT - REALM" under the Play button.
+- An account name set in Settings is filled in on the game's login screen, with or without auto-login.
+
 ## 1.2.2
 
 - The login music now starts at 10% volume instead of 50%. If you already moved the slider, your setting is kept.

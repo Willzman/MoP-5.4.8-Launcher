@@ -31,6 +31,22 @@ The launcher plays the Mists of Pandaria login screen music from your own game f
 (it reads the archives in the game's `Data` folder; nothing is downloaded or shipped).
 The **♪** button next to Play opens a volume slider and the on/off switch. It stops when the game starts.
 
+## Auto-login
+
+Enter your account name and password in **Settings** and tick **Log in automatically when the
+game starts**. After Play, the launcher waits for the game's login screen and types the password
+into it for you; nothing extra is injected into the game for this.
+
+- The password is stored in `%AppData%\MoPLauncher\config.json`, encrypted with Windows data
+  protection for your Windows account. It can't be read by another Windows user or on another PC,
+  but programs running as you can decrypt it, as with any saved password. Untick the box to remove it.
+- The account name is written to `accountName` in `WTF\Config.wtf`, the same setting the game's
+  own "Remember Account Name" box uses.
+- A wrong password is tried once; the launcher doesn't retry after the game has contacted the server.
+
+Under Play, the launcher shows **Last played: ACCOUNT - REALM**, read from what the game itself
+remembers in `WTF\Config.wtf`.
+
 ## What it patches
 
 The patch set is the classic-login one from the
