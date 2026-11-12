@@ -28,7 +28,7 @@ public class LauncherConfig
     public bool MusicEnabled { get; set; } = true;
 
     // 0 to 1.
-    public double MusicVolume { get; set; } = 0.5;
+    public double MusicVolume { get; set; } = 0.1;
 
     // Returns the client executable to start, or null when the folder has none.
     public string? FindClientExecutable()

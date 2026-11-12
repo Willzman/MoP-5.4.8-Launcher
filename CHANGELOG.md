@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.2.2
+
+- The login music now starts at 10% volume instead of 50%. If you already moved the slider, your setting is kept.
+
 ## 1.2.1
 
 - The ♪ button now opens a volume slider for the login music, with the on/off switch under it. The default is 50%.

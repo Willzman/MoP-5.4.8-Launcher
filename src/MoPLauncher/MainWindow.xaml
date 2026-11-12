@@ -111,7 +111,7 @@
                         <StackPanel>
                             <Grid Margin="16,10,16,0">
                                 <TextBlock Text="Music volume" FontWeight="SemiBold"/>
-                                <TextBlock x:Name="VolumeText" Text="50%" HorizontalAlignment="Right"
+                                <TextBlock x:Name="VolumeText" Text="10%" HorizontalAlignment="Right"
                                            Foreground="{StaticResource MutedBrush}"/>
                             </Grid>
                             <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10"
