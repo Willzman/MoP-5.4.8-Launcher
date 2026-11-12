@@ -1,0 +1,81 @@
+name: Build and release
+
+# Every push to main is built. When the <Version> in MoPLauncher.csproj has
+# no release yet, one is published, which is what installed launchers pick
+# up as an update.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content src/MoPLauncher/MoPLauncher.csproj
+          $version = ($project.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1).Trim()
+          if (-not $version) { throw "No <Version> in MoPLauncher.csproj" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Publish
+        run: dotnet publish src/MoPLauncher/MoPLauncher.csproj -c Release -o publish
+
+      - name: Checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash publish/MoPLauncher.exe -Algorithm SHA256).Hash.ToLower()
+          "$hash  MoPLauncher.exe" | Out-File -Encoding ascii publish/MoPLauncher.exe.sha256
+          Get-Item publish/MoPLauncher.exe | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MoPLauncher
+          path: |
+            publish/MoPLauncher.exe
+            publish/MoPLauncher.exe.sha256
+
+      - name: Release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $tag = "v$env:VERSION"
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; bump <Version> to publish a new one."
+            exit 0
+          }
+
+          # Release notes = this version's section of CHANGELOG.md.
+          $notes = @()
+          $inSection = $false
+          foreach ($line in Get-Content CHANGELOG.md) {
+            if ($line -match '^## ') {
+              if ($inSection) { break }
+              $inSection = $line -match "^## v?$([regex]::Escape($env:VERSION))\b"
+              continue
+            }
+            if ($inSection) { $notes += $line }
+          }
+          if (-not ($notes -join '').Trim()) { $notes = @("Launcher $env:VERSION.") }
+          $notes | Out-File -Encoding utf8 notes.md
+
+          gh release create $tag publish/MoPLauncher.exe publish/MoPLauncher.exe.sha256 `
+            --title "Launcher $env:VERSION" --notes-file notes.md --target $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }

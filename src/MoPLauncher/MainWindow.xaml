@@ -1,0 +1,178 @@
+<Window x:Class="MoPLauncher.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mists of Pandaria Launcher"
+        Width="1180" Height="720"
+        MinWidth="980" MinHeight="620"
+        Icon="Assets/icon.ico"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource InkBrush}"
+        FontFamily="{StaticResource BodyFont}"
+        FontSize="14"
+        Foreground="{StaticResource TextBrush}"
+        UseLayoutRounding="True"
+        PreviewKeyDown="Window_PreviewKeyDown">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Artwork -->
+        <Image Grid.RowSpan="2" Source="Assets/background.jpg" Stretch="UniformToFill"
+               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+        <!-- Title -->
+        <StackPanel Grid.Row="0" Margin="44,34,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+            <TextBlock Text="Mists of Pandaria" FontFamily="{StaticResource DisplayFont}" FontWeight="Bold"
+                       FontSize="46" Foreground="{StaticResource TitleBrush}">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="14" ShadowDepth="2" Opacity="0.8"/>
+                </TextBlock.Effect>
+            </TextBlock>
+            <TextBlock x:Name="RealmText" Text="Patch 5.4.8" FontSize="16" Margin="3,2,0,0">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="8" ShadowDepth="1" Opacity="0.9"/>
+                </TextBlock.Effect>
+            </TextBlock>
+        </StackPanel>
+
+        <!-- News / setup panel -->
+        <Border Grid.Row="0" Width="392" Margin="0,28,28,28" HorizontalAlignment="Right" VerticalAlignment="Top"
+                Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource HairlineBrush}"
+                BorderThickness="1" CornerRadius="6" Padding="22,20,22,22">
+            <StackPanel>
+                <TextBlock x:Name="PanelKicker" Text="WHAT'S NEW" FontSize="11.5" FontWeight="Bold"
+                           Foreground="{StaticResource GoldBrush}"/>
+                <TextBlock x:Name="PanelTitle" Text="" FontSize="21" FontWeight="SemiBold" TextWrapping="Wrap"
+                           Margin="0,6,0,10"/>
+                <ScrollViewer MaxHeight="330" VerticalScrollBarVisibility="Auto" Focusable="False">
+                    <StackPanel>
+                        <TextBlock x:Name="PanelBody" TextWrapping="Wrap" LineHeight="21"
+                                   Foreground="#DDE4DF"/>
+                        <StackPanel x:Name="SetupList" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </StackPanel>
+        </Border>
+
+        <!-- Bottom bar -->
+        <Border Grid.Row="1" Background="{StaticResource BarBrush}" BorderBrush="{StaticResource HairlineBrush}"
+                BorderThickness="0,1,0,0" Padding="44,18,28,18">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,36,0">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="StatusTitle" Text="Ready" FontSize="15" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="StatusDetail" Grid.Column="1" Text="" FontSize="13" Margin="12,2,0,0"
+                                   Foreground="{StaticResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
+                    </Grid>
+                    <ProgressBar x:Name="Progress" Style="{StaticResource ThinProgress}" Minimum="0" Maximum="1"
+                                 Value="0" Margin="0,10,0,10"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="VersionText" Text="Version" FontSize="13"
+                                   Foreground="{StaticResource MutedBrush}"/>
+                        <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Check for updates"
+                                Click="CheckForUpdates_Click"/>
+                        <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Open game folder"
+                                Click="OpenGameFolder_Click"/>
+                        <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Settings" Click="OpenSettings_Click"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button x:Name="PlayButton" Grid.Column="1" Style="{StaticResource PlayButton}" Content="Play"
+                        Width="250" Height="58" Click="PlayButton_Click"/>
+
+                <Button x:Name="MoreButton" Grid.Column="2" Style="{StaticResource GhostButton}" Content="···"
+                        Width="46" Height="58" Margin="8,0,0,0" Padding="0" FontSize="18"
+                        ToolTip="More" Click="MoreButton_Click"/>
+
+                <Popup x:Name="MorePopup" PlacementTarget="{Binding ElementName=MoreButton}" Placement="Top"
+                       HorizontalOffset="-204" VerticalOffset="-8" StaysOpen="False" AllowsTransparency="True">
+                    <Border Width="250" Background="#F50E1A1C" BorderBrush="{StaticResource HairlineBrush}"
+                            BorderThickness="1" CornerRadius="6" Padding="5">
+                        <StackPanel>
+                            <Button x:Name="SkipUpdateRow" Style="{StaticResource MenuRow}"
+                                    Content="Play without updating" Click="SkipUpdate_Click" Visibility="Collapsed"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Settings" Click="OpenSettings_Click"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Open game folder"
+                                    Click="OpenGameFolder_Click"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Open AddOns folder"
+                                    Click="OpenAddOnsFolder_Click"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Clear game cache"
+                                    Click="ClearCache_Click"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Launcher on GitHub"
+                                    Click="OpenGitHub_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+            </Grid>
+        </Border>
+
+        <!-- Settings -->
+        <Grid x:Name="SettingsOverlay" Grid.RowSpan="2" Background="#C0000000" Visibility="Collapsed">
+            <Border Width="560" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="#FA0C1719" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1"
+                    CornerRadius="6" Padding="30,26,30,26">
+                <StackPanel>
+                    <TextBlock Text="Settings" FontFamily="{StaticResource DisplayFont}" FontWeight="Bold"
+                               FontSize="24" Foreground="{StaticResource GoldBrush}"/>
+
+                    <TextBlock Text="Game folder" Style="{StaticResource FieldLabel}"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="FolderBox" Style="{StaticResource Field}"/>
+                        <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Browse…" Height="36"
+                                Margin="8,0,0,0" Click="Browse_Click"/>
+                    </Grid>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="The folder of your Mists of Pandaria 5.4.8 client, the one with Wow.exe or Wow-64.exe in it."/>
+
+                    <TextBlock Text="Server address" Style="{StaticResource FieldLabel}"/>
+                    <TextBox x:Name="AddressBox" Style="{StaticResource Field}"/>
+                    <TextBlock Style="{StaticResource Hint}"
+                               Text="The IP or hostname of the server, like 192.168.1.50. Add :port only if its login port isn't 3724."/>
+
+                    <TextBlock Text="Game version" Style="{StaticResource FieldLabel}"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="ArchAuto" GroupName="Arch" Content="Automatic"/>
+                        <RadioButton x:Name="Arch64" GroupName="Arch" Content="64-bit"/>
+                        <RadioButton x:Name="Arch32" GroupName="Arch" Content="32-bit"/>
+                    </StackPanel>
+
+                    <CheckBox x:Name="ClearCacheBox" Content="Clear the game cache before every launch"
+                              Margin="0,20,0,0"/>
+                    <CheckBox x:Name="RedirectBox" Content="Send all game connections to this server"
+                              Margin="0,10,0,0"/>
+                    <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
+                               Text="Leave on unless the world server runs on a different machine from the login server."/>
+
+                    <TextBlock x:Name="SettingsError" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap"
+                               Margin="0,16,0,0" Visibility="Collapsed"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,22,0,0">
+                        <Button Style="{StaticResource GhostButton}" Content="Cancel" Height="40" Width="110"
+                                Click="SettingsCancel_Click"/>
+                        <Button Style="{StaticResource PlayButton}" Content="Save" Height="40" Width="140"
+                                FontSize="16" Margin="10,0,0,0" Click="SettingsSave_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
