@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Mists of Pandaria Launcher"
         Width="1180" Height="720"
-        MinWidth="980" MinHeight="620"
+        MinWidth="1040" MinHeight="620"
         Icon="Assets/icon.ico"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource InkBrush}"
@@ -87,6 +87,9 @@
                         <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
                         <Button Style="{StaticResource LinkButton}" Content="Open game folder"
                                 Click="OpenGameFolder_Click"/>
+                        <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Open AddOns folder"
+                                Click="OpenAddOnsFolder_Click"/>
                         <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
                         <Button Style="{StaticResource LinkButton}" Content="Settings" Click="OpenSettings_Click"/>
                     </StackPanel>
