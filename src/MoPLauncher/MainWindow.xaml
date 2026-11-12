@@ -100,7 +100,7 @@
 
                 <Button x:Name="MusicButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="♪"
                         Width="46" Height="58" Margin="0,0,8,0" Padding="0" FontSize="20"
-                        ToolTip="Music" Click="MusicButton_Click"/>
+                        VerticalAlignment="Top" ToolTip="Music" Click="MusicButton_Click"/>
 
                 <Popup x:Name="MusicPopup" PlacementTarget="{Binding ElementName=MusicButton}" Placement="Top"
                        HorizontalOffset="-92" VerticalOffset="-8" StaysOpen="False" AllowsTransparency="True"
@@ -123,12 +123,21 @@
                     </Border>
                 </Popup>
 
-                <Button x:Name="PlayButton" Grid.Column="2" Style="{StaticResource PlayButton}" Content="Play"
-                        Width="250" Height="58" Click="PlayButton_Click"/>
+                <StackPanel Grid.Column="2" Width="250">
+                    <Button x:Name="PlayButton" Style="{StaticResource PlayButton}" Content="Play"
+                            Height="58" Click="PlayButton_Click"/>
+                    <!-- Who and where the game was last played, from the game's own settings. -->
+                    <TextBlock x:Name="LastPlayedText" FontSize="12.5" Margin="0,8,0,0" TextAlignment="Center"
+                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedBrush}"
+                               Visibility="Collapsed">
+                        <Run Text="Last played:"/>
+                        <Run x:Name="LastPlayedValue" Foreground="{StaticResource TextBrush}"/>
+                    </TextBlock>
+                </StackPanel>
 
                 <Button x:Name="MoreButton" Grid.Column="3" Style="{StaticResource GhostButton}" Content="···"
                         Width="46" Height="58" Margin="8,0,0,0" Padding="0" FontSize="18"
-                        ToolTip="More" Click="MoreButton_Click"/>
+                        VerticalAlignment="Top" ToolTip="More" Click="MoreButton_Click"/>
 
                 <Popup x:Name="MorePopup" PlacementTarget="{Binding ElementName=MoreButton}" Placement="Top"
                        HorizontalOffset="-204" VerticalOffset="-8" StaysOpen="False" AllowsTransparency="True">
@@ -154,10 +163,12 @@
 
         <!-- Settings -->
         <Grid x:Name="SettingsOverlay" Grid.RowSpan="2" Background="#C0000000" Visibility="Collapsed">
-            <Border Width="560" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <Border Width="576" Margin="0,16" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Background="#FA0C1719" BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1"
-                    CornerRadius="6" Padding="30,26,30,26">
-                <StackPanel>
+                    CornerRadius="6" Padding="30,26,14,26">
+                <!-- Scrolls when the window is too short for every setting. -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                <StackPanel Margin="0,0,16,0">
                     <TextBlock Text="Settings" FontFamily="{StaticResource DisplayFont}" FontWeight="Bold"
                                FontSize="24" Foreground="{StaticResource GoldBrush}"/>
 
@@ -193,6 +204,26 @@
                     <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
                                Text="Leave on unless the world server runs on a different machine from the login server."/>
 
+                    <Grid Margin="0,2,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Account name" Style="{StaticResource FieldLabel}"/>
+                            <TextBox x:Name="AccountBox" Style="{StaticResource Field}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
+                            <PasswordBox x:Name="AccountPasswordBox" Style="{StaticResource PasswordField}"/>
+                        </StackPanel>
+                    </Grid>
+                    <CheckBox x:Name="AutoLoginBox" Content="Log in automatically when the game starts"
+                              Margin="0,12,0,0"/>
+                    <TextBlock x:Name="AutoLoginHint" Style="{StaticResource Hint}" Margin="24,3,0,0"
+                               Text="The password is saved encrypted for your Windows account on this PC."/>
+
                     <TextBlock x:Name="SettingsError" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap"
                                Margin="0,16,0,0" Visibility="Collapsed"/>
 
@@ -203,6 +234,7 @@
                                 FontSize="16" Margin="10,0,0,0" Click="SettingsSave_Click"/>
                     </StackPanel>
                 </StackPanel>
+                </ScrollViewer>
             </Border>
         </Grid>
     </Grid>

@@ -61,6 +61,10 @@ public partial class MainWindow : Window
         _music.MediaFailed += (_, _) => _musicLoaded = false;
         Closed += (_, _) => _music.Close();
 
+        // The game saves its settings when it closes; pick that up when the
+        // player comes back to the launcher.
+        Activated += (_, _) => RefreshLastPlayed();
+
         Loaded += async (_, _) =>
         {
             UpdateService.CleanUpAfterUpdate();
@@ -130,6 +134,30 @@ public partial class MainWindow : Window
         }
 
         PlayButton.IsEnabled = !_busy;
+        RefreshLastPlayed();
+    }
+
+    // "Last played: ACCOUNT - REALM", from what the game itself remembers in
+    // Config.wtf, so it is also right after a login typed in the game.
+    private void RefreshLastPlayed()
+    {
+        var folder = _config.ClientLocation;
+        var account = ConfigWtf.Get(folder, "accountName");
+        if (string.IsNullOrWhiteSpace(account))
+        {
+            LastPlayedText.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var realm = ConfigWtf.Get(folder, "realmName");
+        if (string.IsNullOrWhiteSpace(realm))
+            realm = !string.IsNullOrWhiteSpace(ServerDefaults.RealmName)
+                ? ServerDefaults.RealmName
+                : _config.ServerAddress.Trim();
+
+        LastPlayedValue.Text = string.IsNullOrWhiteSpace(realm) ? account : $"{account} - {realm}";
+        LastPlayedText.ToolTip = $"Last played: {LastPlayedValue.Text}";
+        LastPlayedText.Visibility = Visibility.Visible;
     }
 
     private void AddSetupStep(string text, bool done, bool current)
@@ -222,10 +250,14 @@ public partial class MainWindow : Window
             var folder = _config.ClientLocation;
             var clearCache = _config.ClearCacheOnLaunch;
             var redirect = _config.RedirectAllConnections;
+            var account = _config.AccountName.Trim();
+            var password = _config.AutoLogin && account.Length > 0
+                ? SavedPassword.Unprotect(_config.ProtectedPassword)
+                : null;
 
             SetStatus("Starting the game", "patching the client in memory", 0.5);
 
-            await Task.Run(() =>
+            var processId = await Task.Run(() =>
             {
                 if (clearCache)
                     ClearCache(folder);
@@ -233,14 +265,30 @@ public partial class MainWindow : Window
                 ConfigWtf.Set(folder, "realmlist", endpoint.Realmlist);
                 // Keeps the client off the Battle.net login path.
                 ConfigWtf.Remove(folder, "realmListbn");
+                // The login screen opens with the name filled in and the
+                // cursor in the password box, which auto-login relies on.
+                if (account.Length > 0)
+                    ConfigWtf.Set(folder, "accountName", account);
 
-                ClientLauncher.Launch(exePath, folder, endpoint.Address, endpoint.Port, redirect);
+                return ClientLauncher.Launch(exePath, folder, endpoint.Address, endpoint.Port, redirect);
             });
-
-            SetStatus("Game started", $"connected to {endpoint.Realmlist}", 1);
 
             // The game has its own music from here on.
             _music.Pause();
+
+            if (password is not null)
+            {
+                SetStatus("Game started", $"logging in as {account} when the login screen is up", 1);
+                _ = AutoLoginAsync(processId, account, password, endpoint.Port);
+            }
+            else if (_config.AutoLogin)
+            {
+                SetStatus("Game started", "the saved password couldn't be read; enter it again in Settings", 1);
+            }
+            else
+            {
+                SetStatus("Game started", $"connected to {endpoint.Realmlist}", 1);
+            }
         }
         catch (Exception ex)
         {
@@ -251,6 +299,27 @@ public partial class MainWindow : Window
             SetBusy(false);
             Refresh();
         }
+    }
+
+    // Runs alongside the game; the launcher stays usable meanwhile.
+    private async Task AutoLoginAsync(int processId, string account, string password, int loginPort)
+    {
+        bool loggedIn;
+        try
+        {
+            loggedIn = await AutoLogin.RunAsync(processId, password, loginPort);
+        }
+        catch (Exception)
+        {
+            loggedIn = false;
+        }
+
+        // Leave the status alone if something else has taken it over since.
+        if (_busy || StatusTitle.Text != "Game started")
+            return;
+
+        SetStatus("Game started",
+            loggedIn ? $"logging in as {account}" : "couldn't log in for you; log in from the game", 1);
     }
 
     private static void ClearCache(string clientLocation)
@@ -508,6 +577,13 @@ public partial class MainWindow : Window
         Arch32.IsChecked = _config.Architecture == ClientArchitecture.X86;
         ClearCacheBox.IsChecked = _config.ClearCacheOnLaunch;
         RedirectBox.IsChecked = _config.RedirectAllConnections;
+        AccountBox.Text = _config.AccountName;
+        AutoLoginBox.IsChecked = _config.AutoLogin;
+        // The saved password is never put back in the box; blank keeps it.
+        AccountPasswordBox.Clear();
+        AutoLoginHint.Text = SavedPassword.Unprotect(_config.ProtectedPassword) is not null
+            ? "A password is saved. Leave the box empty to keep it, or type a new one."
+            : "The password is saved encrypted for your Windows account on this PC.";
         SettingsError.Visibility = Visibility.Collapsed;
 
         SettingsOverlay.Visibility = Visibility.Visible;
@@ -539,9 +615,20 @@ public partial class MainWindow : Window
                 : ClientArchitecture.Auto,
             ClearCacheOnLaunch = ClearCacheBox.IsChecked == true,
             RedirectAllConnections = RedirectBox.IsChecked == true,
+            AccountName = AccountBox.Text.Trim(),
+            AutoLogin = AutoLoginBox.IsChecked == true,
             MusicEnabled = _config.MusicEnabled,
             MusicVolume = _config.MusicVolume
         };
+
+        // The password is only kept while auto-login is on. A blank box keeps
+        // the saved one, unless it belongs to a different account name.
+        var typedPassword = AccountPasswordBox.Password;
+        var sameAccount = string.Equals(candidate.AccountName, _config.AccountName, StringComparison.OrdinalIgnoreCase);
+        if (candidate.AutoLogin)
+            candidate.ProtectedPassword = typedPassword.Length > 0 ? SavedPassword.Protect(typedPassword)
+                : sameAccount ? _config.ProtectedPassword
+                : string.Empty;
 
         string? problem = null;
         if (!Directory.Exists(candidate.ClientLocation))
@@ -555,6 +642,12 @@ public partial class MainWindow : Window
             };
         else if (!ServerEndpoint.TryParse(candidate.ServerAddress, out _, out _))
             problem = "Enter the server's IP or hostname, like 192.168.1.50.";
+        else if (candidate.AccountName.Contains('"'))
+            problem = "The account name can't contain a quote mark.";
+        else if (candidate.AutoLogin && candidate.AccountName.Length == 0)
+            problem = "Enter your account name to log in automatically.";
+        else if (candidate.AutoLogin && SavedPassword.Unprotect(candidate.ProtectedPassword) is null)
+            problem = "Enter your password to log in automatically.";
 
         if (problem is null)
         {
