@@ -29,7 +29,7 @@ replaces itself and restarts. Nothing has to be reinstalled.
 
 The launcher plays the Mists of Pandaria login screen music from your own game files
 (it reads the archives in the game's `Data` folder; nothing is downloaded or shipped).
-The **♪** button next to Play turns it on and off. It stops when the game starts.
+The **♪** button next to Play opens a volume slider and the on/off switch. It stops when the game starts.
 
 ## What it patches
 

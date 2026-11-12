@@ -30,9 +30,13 @@ public partial class MainWindow : Window
 
     // Plays the login music found in the client. _musicFor is the game folder
     // the current track came from, so a folder change looks again.
-    private readonly MediaPlayer _music = new() { Volume = 0.5 };
+    private readonly MediaPlayer _music = new();
     private string? _musicFor;
     private bool _musicLoaded;
+
+    // False until the saved settings are in the controls, so the slider's
+    // first events don't overwrite them.
+    private bool _ready;
 
     public MainWindow()
     {
@@ -42,6 +46,12 @@ public partial class MainWindow : Window
         VersionText.Text = $"Version {UpdateService.CurrentVersion}";
         Refresh();
         SetStatus(IsConfigured ? "Ready" : "Setup needed", IsConfigured ? string.Empty : "choose your game folder to start");
+
+        var volume = Math.Clamp(_config.MusicVolume, 0, 1);
+        _music.Volume = volume;
+        VolumeSlider.Value = Math.Round(volume * 100);
+        VolumeText.Text = $"{VolumeSlider.Value:0}%";
+        _ready = true;
 
         _music.MediaEnded += (_, _) =>
         {
@@ -256,7 +266,8 @@ public partial class MainWindow : Window
     private async Task UpdateMusicAsync(bool announce)
     {
         MusicButton.Opacity = _config.MusicEnabled ? 1 : 0.45;
-        MusicButton.ToolTip = _config.MusicEnabled ? "Music on" : "Music off";
+        MusicButton.ToolTip = _config.MusicEnabled ? "Music" : "Music (off)";
+        MusicToggleRow.Content = _config.MusicEnabled ? "Turn music off" : "Turn music on";
 
         if (!_config.MusicEnabled)
         {
@@ -294,19 +305,35 @@ public partial class MainWindow : Window
         _music.Play();
     }
 
-    private async void MusicButton_Click(object sender, RoutedEventArgs e)
+    private void MusicButton_Click(object sender, RoutedEventArgs e) => MusicPopup.IsOpen = !MusicPopup.IsOpen;
+
+    private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (!_ready)
+            return;
+
+        _config.MusicVolume = e.NewValue / 100;
+        _music.Volume = _config.MusicVolume;
+        VolumeText.Text = $"{e.NewValue:0}%";
+    }
+
+    private async void MusicToggle_Click(object sender, RoutedEventArgs e)
     {
         _config.MusicEnabled = !_config.MusicEnabled;
+        await UpdateMusicAsync(announce: true);
+    }
+
+    // The volume and on/off choice are saved once, when the popup closes.
+    private void MusicPopup_Closed(object? sender, EventArgs e)
+    {
         try
         {
             _store.Save(_config);
         }
         catch (Exception)
         {
-            // Not being able to remember the choice shouldn't stop the toggle.
+            // Not being able to remember the choice shouldn't matter here.
         }
-
-        await UpdateMusicAsync(announce: true);
     }
 
     // ---- Updates -----------------------------------------------------------
@@ -512,7 +539,8 @@ public partial class MainWindow : Window
                 : ClientArchitecture.Auto,
             ClearCacheOnLaunch = ClearCacheBox.IsChecked == true,
             RedirectAllConnections = RedirectBox.IsChecked == true,
-            MusicEnabled = _config.MusicEnabled
+            MusicEnabled = _config.MusicEnabled,
+            MusicVolume = _config.MusicVolume
         };
 
         string? problem = null;

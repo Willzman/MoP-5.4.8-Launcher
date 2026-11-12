@@ -100,7 +100,28 @@
 
                 <Button x:Name="MusicButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="♪"
                         Width="46" Height="58" Margin="0,0,8,0" Padding="0" FontSize="20"
-                        ToolTip="Music on" Click="MusicButton_Click"/>
+                        ToolTip="Music" Click="MusicButton_Click"/>
+
+                <Popup x:Name="MusicPopup" PlacementTarget="{Binding ElementName=MusicButton}" Placement="Top"
+                       HorizontalOffset="-92" VerticalOffset="-8" StaysOpen="False" AllowsTransparency="True"
+                       Closed="MusicPopup_Closed">
+                    <Border Width="230" Background="#F50E1A1C" BorderBrush="{StaticResource HairlineBrush}"
+                            BorderThickness="1" CornerRadius="6" Padding="5"
+                            TextElement.Foreground="{StaticResource TextBrush}">
+                        <StackPanel>
+                            <Grid Margin="16,10,16,0">
+                                <TextBlock Text="Music volume" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="VolumeText" Text="50%" HorizontalAlignment="Right"
+                                           Foreground="{StaticResource MutedBrush}"/>
+                            </Grid>
+                            <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" SmallChange="5" LargeChange="10"
+                                    IsMoveToPointEnabled="True" Margin="13,10,13,8"
+                                    ValueChanged="VolumeSlider_ValueChanged"/>
+                            <Button x:Name="MusicToggleRow" Style="{StaticResource MenuRow}" Content="Turn music off"
+                                    Click="MusicToggle_Click"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
 
                 <Button x:Name="PlayButton" Grid.Column="2" Style="{StaticResource PlayButton}" Content="Play"
                         Width="250" Height="58" Click="PlayButton_Click"/>

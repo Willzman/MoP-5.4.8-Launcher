@@ -27,6 +27,9 @@ public class LauncherConfig
     // Plays the client's own login screen music while the launcher is open.
     public bool MusicEnabled { get; set; } = true;
 
+    // 0 to 1.
+    public double MusicVolume { get; set; } = 0.5;
+
     // Returns the client executable to start, or null when the folder has none.
     public string? FindClientExecutable()
     {
