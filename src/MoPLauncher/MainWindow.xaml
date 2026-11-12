@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:MoPLauncher"
         Title="Mists of Pandaria Launcher"
         Width="1180" Height="720"
-        MinWidth="1040" MinHeight="620"
+        MinWidth="1090" MinHeight="620"
         Icon="Assets/icon.ico"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource InkBrush}"
@@ -66,6 +66,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,36,0">
@@ -97,10 +98,14 @@
                     </StackPanel>
                 </StackPanel>
 
-                <Button x:Name="PlayButton" Grid.Column="1" Style="{StaticResource PlayButton}" Content="Play"
+                <Button x:Name="MusicButton" Grid.Column="1" Style="{StaticResource GhostButton}" Content="♪"
+                        Width="46" Height="58" Margin="0,0,8,0" Padding="0" FontSize="20"
+                        ToolTip="Music on" Click="MusicButton_Click"/>
+
+                <Button x:Name="PlayButton" Grid.Column="2" Style="{StaticResource PlayButton}" Content="Play"
                         Width="250" Height="58" Click="PlayButton_Click"/>
 
-                <Button x:Name="MoreButton" Grid.Column="2" Style="{StaticResource GhostButton}" Content="···"
+                <Button x:Name="MoreButton" Grid.Column="3" Style="{StaticResource GhostButton}" Content="···"
                         Width="46" Height="58" Margin="8,0,0,0" Padding="0" FontSize="18"
                         ToolTip="More" Click="MoreButton_Click"/>
 

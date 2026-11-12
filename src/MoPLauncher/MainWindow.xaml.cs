@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Win32;
 using MoPLauncher.Config;
+using MoPLauncher.Music;
 using MoPLauncher.Patching;
 using MoPLauncher.Update;
 
@@ -27,6 +28,12 @@ public partial class MainWindow : Window
 
     private bool _busy;
 
+    // Plays the login music found in the client. _musicFor is the game folder
+    // the current track came from, so a folder change looks again.
+    private readonly MediaPlayer _music = new() { Volume = 0.5 };
+    private string? _musicFor;
+    private bool _musicLoaded;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -36,9 +43,18 @@ public partial class MainWindow : Window
         Refresh();
         SetStatus(IsConfigured ? "Ready" : "Setup needed", IsConfigured ? string.Empty : "choose your game folder to start");
 
+        _music.MediaEnded += (_, _) =>
+        {
+            _music.Position = TimeSpan.Zero;
+            _music.Play();
+        };
+        _music.MediaFailed += (_, _) => _musicLoaded = false;
+        Closed += (_, _) => _music.Close();
+
         Loaded += async (_, _) =>
         {
             UpdateService.CleanUpAfterUpdate();
+            _ = UpdateMusicAsync(announce: false);
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -212,6 +228,9 @@ public partial class MainWindow : Window
             });
 
             SetStatus("Game started", $"connected to {endpoint.Realmlist}", 1);
+
+            // The game has its own music from here on.
+            _music.Pause();
         }
         catch (Exception ex)
         {
@@ -229,6 +248,65 @@ public partial class MainWindow : Window
         var cachePath = Path.Combine(clientLocation, "Cache");
         if (Directory.Exists(cachePath))
             Directory.Delete(cachePath, recursive: true);
+    }
+
+    // ---- Music -------------------------------------------------------------
+
+    // Starts, stops or re-finds the login music to match the settings.
+    private async Task UpdateMusicAsync(bool announce)
+    {
+        MusicButton.Opacity = _config.MusicEnabled ? 1 : 0.45;
+        MusicButton.ToolTip = _config.MusicEnabled ? "Music on" : "Music off";
+
+        if (!_config.MusicEnabled)
+        {
+            _music.Pause();
+            return;
+        }
+
+        var folder = _config.ClientLocation;
+        if (_config.FindClientExecutable() is null)
+            return;
+
+        if (!_musicLoaded || !string.Equals(_musicFor, folder, StringComparison.OrdinalIgnoreCase))
+        {
+            // Reading the game's archives can take a few seconds the first
+            // time; after that the track is cached.
+            var track = await Task.Run(() => ClientMusic.FindLoginMusic(folder));
+
+            if (!_config.MusicEnabled || !string.Equals(folder, _config.ClientLocation, StringComparison.OrdinalIgnoreCase))
+                return; // settings changed while looking
+
+            if (track is null)
+            {
+                _musicLoaded = false;
+                MusicButton.ToolTip = "The login music wasn't found in this game folder";
+                if (announce)
+                    SetStatus("No login music found", "this game folder's sound archives don't have it");
+                return;
+            }
+
+            _music.Open(new Uri(track));
+            _musicFor = folder;
+            _musicLoaded = true;
+        }
+
+        _music.Play();
+    }
+
+    private async void MusicButton_Click(object sender, RoutedEventArgs e)
+    {
+        _config.MusicEnabled = !_config.MusicEnabled;
+        try
+        {
+            _store.Save(_config);
+        }
+        catch (Exception)
+        {
+            // Not being able to remember the choice shouldn't stop the toggle.
+        }
+
+        await UpdateMusicAsync(announce: true);
     }
 
     // ---- Updates -----------------------------------------------------------
@@ -433,7 +511,8 @@ public partial class MainWindow : Window
                 : Arch32.IsChecked == true ? ClientArchitecture.X86
                 : ClientArchitecture.Auto,
             ClearCacheOnLaunch = ClearCacheBox.IsChecked == true,
-            RedirectAllConnections = RedirectBox.IsChecked == true
+            RedirectAllConnections = RedirectBox.IsChecked == true,
+            MusicEnabled = _config.MusicEnabled
         };
 
         string? problem = null;
@@ -473,6 +552,7 @@ public partial class MainWindow : Window
         Refresh();
         if (_update is null)
             SetStatus("Ready");
+        _ = UpdateMusicAsync(announce: false);
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

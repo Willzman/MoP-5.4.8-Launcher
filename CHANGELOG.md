@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.2.0
+
+- Plays the Mists of Pandaria login screen music, read from your own game files. The ♪ button turns it on and off.
+
 ## 1.1.0
 
 - Blossom petals now drift off the tree and blow across the window in the wind.
