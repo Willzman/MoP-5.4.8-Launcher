@@ -126,14 +126,32 @@
                 <StackPanel Grid.Column="2" Width="250">
                     <Button x:Name="PlayButton" Style="{StaticResource PlayButton}" Content="Play"
                             Height="58" Click="PlayButton_Click"/>
-                    <!-- Who and where the game was last played, from the game's own settings. -->
-                    <TextBlock x:Name="LastPlayedText" FontSize="12.5" Margin="0,8,0,0" TextAlignment="Center"
-                               TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedBrush}"
-                               Visibility="Collapsed">
-                        <Run Text="Last played:"/>
-                        <Run x:Name="LastPlayedValue" Foreground="{StaticResource TextBrush}"/>
-                    </TextBlock>
+                    <!-- Who and where the game was last played. The account and the realm
+                         turn into drop-downs once more than one of them is known. The row
+                         may run under the two small buttons beside Play. -->
+                    <StackPanel x:Name="LastPlayedRow" Orientation="Horizontal" HorizontalAlignment="Center"
+                                Margin="-54,8,-54,0" Visibility="Collapsed">
+                        <TextBlock x:Name="LastPlayedLabel" Text="Last played:" FontSize="12.5" Margin="0,0,5,0"
+                                   Foreground="{StaticResource MutedBrush}"/>
+                        <Button x:Name="AccountPick" Style="{StaticResource PickButton}" MaxWidth="130"
+                                Click="AccountPick_Click"/>
+                        <TextBlock x:Name="PickSeparator" Text="-" FontSize="12.5" Margin="5,0"
+                                   Foreground="{StaticResource MutedBrush}"/>
+                        <Button x:Name="RealmPick" Style="{StaticResource PickButton}" MaxWidth="130"
+                                Click="RealmPick_Click"/>
+                    </StackPanel>
                 </StackPanel>
+
+                <Popup x:Name="PickPopup" Placement="Top" VerticalOffset="-6" StaysOpen="False"
+                       AllowsTransparency="True">
+                    <Border MinWidth="170" MaxWidth="300" Background="#F50E1A1C"
+                            BorderBrush="{StaticResource HairlineBrush}" BorderThickness="1" CornerRadius="6"
+                            Padding="5">
+                        <ScrollViewer MaxHeight="260" VerticalScrollBarVisibility="Auto" Focusable="False">
+                            <StackPanel x:Name="PickList"/>
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
 
                 <Button x:Name="MoreButton" Grid.Column="3" Style="{StaticResource GhostButton}" Content="···"
                         Width="46" Height="58" Margin="8,0,0,0" Padding="0" FontSize="18"
@@ -213,6 +231,8 @@
                         <StackPanel>
                             <TextBlock Text="Account name" Style="{StaticResource FieldLabel}"/>
                             <TextBox x:Name="AccountBox" Style="{StaticResource Field}"/>
+                            <Button Style="{StaticResource LinkButton}" Content="Forget this account" FontSize="12.5"
+                                    HorizontalAlignment="Left" Margin="0,6,0,0" Click="ForgetAccount_Click"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
@@ -221,8 +241,8 @@
                     </Grid>
                     <CheckBox x:Name="AutoLoginBox" Content="Log in automatically when the game starts"
                               Margin="0,12,0,0"/>
-                    <TextBlock x:Name="AutoLoginHint" Style="{StaticResource Hint}" Margin="24,3,0,0"
-                               Text="The password is saved encrypted for your Windows account on this PC."/>
+                    <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
+                               Text="Passwords are saved encrypted for your Windows account on this PC. Leave the box empty to keep the one already saved for an account. To add another account, type its name and password and save; choose between them under Play."/>
 
                     <TextBlock x:Name="SettingsError" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap"
                                Margin="0,16,0,0" Visibility="Collapsed"/>

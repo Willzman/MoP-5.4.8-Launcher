@@ -137,27 +137,106 @@ public partial class MainWindow : Window
         RefreshLastPlayed();
     }
 
-    // "Last played: ACCOUNT - REALM", from what the game itself remembers in
-    // Config.wtf, so it is also right after a login typed in the game.
+    // "Last played: ACCOUNT - REALM" under Play. What was last played comes
+    // from what the game itself remembers in Config.wtf, so it is also right
+    // after a login typed in the game. Every account and realm seen there is
+    // remembered, and once there is more than one of either, that part of
+    // the line becomes a drop-down for choosing what Play starts next.
     private void RefreshLastPlayed()
     {
         var folder = _config.ClientLocation;
-        var account = ConfigWtf.Get(folder, "accountName");
-        if (string.IsNullOrWhiteSpace(account))
+        var playedAccount = ConfigWtf.Get(folder, "accountName")?.Trim() ?? string.Empty;
+        var playedRealm = ConfigWtf.Get(folder, "realmName")?.Trim() ?? string.Empty;
+
+        var learned = _config.FindAccount(playedAccount) is null && _config.RememberAccount(playedAccount) is not null;
+        learned |= _config.RememberRealm(playedRealm);
+        if (learned)
+            SaveQuietly();
+
+        var account = _config.AccountName.Trim().Length > 0 ? _config.AccountName.Trim() : playedAccount;
+        if (account.Length == 0)
         {
-            LastPlayedText.Visibility = Visibility.Collapsed;
+            LastPlayedRow.Visibility = Visibility.Collapsed;
             return;
         }
 
-        var realm = ConfigWtf.Get(folder, "realmName");
-        if (string.IsNullOrWhiteSpace(realm))
+        var realm = _config.Realm.Trim().Length > 0 ? _config.Realm.Trim() : playedRealm;
+        var same = string.Equals(account, playedAccount, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(realm, playedRealm, StringComparison.OrdinalIgnoreCase);
+
+        // No realm known yet: show the server instead, as plain text.
+        if (realm.Length == 0)
             realm = !string.IsNullOrWhiteSpace(ServerDefaults.RealmName)
                 ? ServerDefaults.RealmName
                 : _config.ServerAddress.Trim();
 
-        LastPlayedValue.Text = string.IsNullOrWhiteSpace(realm) ? account : $"{account} - {realm}";
-        LastPlayedText.ToolTip = $"Last played: {LastPlayedValue.Text}";
-        LastPlayedText.Visibility = Visibility.Visible;
+        LastPlayedLabel.Text = same ? "Last played:" : "Play as:";
+        SetPick(AccountPick, account, _config.Accounts.Count > 1, "Choose the account to play");
+        SetPick(RealmPick, realm, _config.Realms.Count > 1, "Choose the realm to enter");
+        PickSeparator.Visibility = RealmPick.Visibility;
+        LastPlayedRow.Visibility = Visibility.Visible;
+    }
+
+    private static void SetPick(Button button, string text, bool hasChoice, string toolTip)
+    {
+        button.Content = hasChoice ? $"{text} ▾" : text;
+        button.IsHitTestVisible = hasChoice;
+        button.Focusable = hasChoice;
+        button.ToolTip = hasChoice ? toolTip : null;
+        button.Visibility = text.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AccountPick_Click(object sender, RoutedEventArgs e)
+    {
+        var current = _config.AccountName.Trim().Length > 0
+            ? _config.AccountName.Trim()
+            : ConfigWtf.Get(_config.ClientLocation, "accountName")?.Trim() ?? string.Empty;
+
+        ShowPicks(AccountPick, _config.Accounts.Select(a => a.Name), current, name => _config.AccountName = name);
+    }
+
+    private void RealmPick_Click(object sender, RoutedEventArgs e)
+    {
+        var current = _config.Realm.Trim().Length > 0
+            ? _config.Realm.Trim()
+            : ConfigWtf.Get(_config.ClientLocation, "realmName")?.Trim() ?? string.Empty;
+
+        ShowPicks(RealmPick, _config.Realms, current, name => _config.Realm = name);
+    }
+
+    private void ShowPicks(Button anchor, IEnumerable<string> names, string current, Action<string> choose)
+    {
+        PickList.Children.Clear();
+        foreach (var name in names.OrderBy(n => n, StringComparer.OrdinalIgnoreCase))
+        {
+            var row = new Button { Style = (Style)FindResource("MenuRow"), Content = name };
+            if (string.Equals(name, current, StringComparison.OrdinalIgnoreCase))
+                row.Foreground = (Brush)FindResource("GoldBrush");
+
+            row.Click += (_, _) =>
+            {
+                PickPopup.IsOpen = false;
+                choose(name);
+                SaveQuietly();
+                RefreshLastPlayed();
+            };
+            PickList.Children.Add(row);
+        }
+
+        PickPopup.PlacementTarget = anchor;
+        PickPopup.IsOpen = true;
+    }
+
+    // For choices that aren't worth an error if they can't be remembered.
+    private void SaveQuietly()
+    {
+        try
+        {
+            _store.Save(_config);
+        }
+        catch (Exception)
+        {
+        }
     }
 
     private void AddSetupStep(string text, bool done, bool current)
@@ -251,8 +330,9 @@ public partial class MainWindow : Window
             var clearCache = _config.ClearCacheOnLaunch;
             var redirect = _config.RedirectAllConnections;
             var account = _config.AccountName.Trim();
+            var realm = _config.Realm.Trim();
             var password = _config.AutoLogin && account.Length > 0
-                ? SavedPassword.Unprotect(_config.ProtectedPassword)
+                ? SavedPassword.Unprotect(_config.FindAccount(account)?.ProtectedPassword)
                 : null;
 
             SetStatus("Starting the game", "patching the client in memory", 0.5);
@@ -269,6 +349,9 @@ public partial class MainWindow : Window
                 // cursor in the password box, which auto-login relies on.
                 if (account.Length > 0)
                     ConfigWtf.Set(folder, "accountName", account);
+                // The game enters the realm it remembers by this name.
+                if (realm.Length > 0)
+                    ConfigWtf.Set(folder, "realmName", realm);
 
                 return ClientLauncher.Launch(exePath, folder, endpoint.Address, endpoint.Port, redirect);
             });
@@ -283,7 +366,9 @@ public partial class MainWindow : Window
             }
             else if (_config.AutoLogin)
             {
-                SetStatus("Game started", "the saved password couldn't be read; enter it again in Settings", 1);
+                SetStatus("Game started", account.Length == 0
+                    ? "no account is chosen, so log in from the game"
+                    : $"no password is saved for {account}; add it in Settings, or log in from the game", 1);
             }
             else
             {
@@ -581,9 +666,6 @@ public partial class MainWindow : Window
         AutoLoginBox.IsChecked = _config.AutoLogin;
         // The saved password is never put back in the box; blank keeps it.
         AccountPasswordBox.Clear();
-        AutoLoginHint.Text = SavedPassword.Unprotect(_config.ProtectedPassword) is not null
-            ? "A password is saved. Leave the box empty to keep it, or type a new one."
-            : "The password is saved encrypted for your Windows account on this PC.";
         SettingsError.Visibility = Visibility.Collapsed;
 
         SettingsOverlay.Visibility = Visibility.Visible;
@@ -618,17 +700,31 @@ public partial class MainWindow : Window
             AccountName = AccountBox.Text.Trim(),
             AutoLogin = AutoLoginBox.IsChecked == true,
             MusicEnabled = _config.MusicEnabled,
-            MusicVolume = _config.MusicVolume
+            MusicVolume = _config.MusicVolume,
+            // Copies, so a cancelled or refused save changes nothing.
+            Accounts = _config.Accounts
+                .Select(a => new SavedAccount { Name = a.Name, ProtectedPassword = a.ProtectedPassword }).ToList(),
+            Realm = _config.Realm,
+            Realms = [.. _config.Realms]
         };
 
-        // The password is only kept while auto-login is on. A blank box keeps
-        // the saved one, unless it belongs to a different account name.
+        // The account in the box is added to the saved ones (or updated) and
+        // becomes the one to play. A blank password box keeps what is saved.
         var typedPassword = AccountPasswordBox.Password;
-        var sameAccount = string.Equals(candidate.AccountName, _config.AccountName, StringComparison.OrdinalIgnoreCase);
-        if (candidate.AutoLogin)
-            candidate.ProtectedPassword = typedPassword.Length > 0 ? SavedPassword.Protect(typedPassword)
-                : sameAccount ? _config.ProtectedPassword
-                : string.Empty;
+        var chosen = candidate.RememberAccount(candidate.AccountName);
+        if (chosen is not null && typedPassword.Length > 0)
+            chosen.ProtectedPassword = SavedPassword.Protect(typedPassword);
+
+        // Passwords are only kept while auto-login is on.
+        if (!candidate.AutoLogin)
+            candidate.Accounts.ForEach(a => a.ProtectedPassword = string.Empty);
+
+        // Realm names belong to the server they were seen on.
+        if (!string.Equals(candidate.ServerAddress, _config.ServerAddress, StringComparison.OrdinalIgnoreCase))
+        {
+            candidate.Realm = string.Empty;
+            candidate.Realms.Clear();
+        }
 
         string? problem = null;
         if (!Directory.Exists(candidate.ClientLocation))
@@ -646,7 +742,7 @@ public partial class MainWindow : Window
             problem = "The account name can't contain a quote mark.";
         else if (candidate.AutoLogin && candidate.AccountName.Length == 0)
             problem = "Enter your account name to log in automatically.";
-        else if (candidate.AutoLogin && SavedPassword.Unprotect(candidate.ProtectedPassword) is null)
+        else if (candidate.AutoLogin && SavedPassword.Unprotect(chosen?.ProtectedPassword) is null)
             problem = "Enter your password to log in automatically.";
 
         if (problem is null)
@@ -674,6 +770,46 @@ public partial class MainWindow : Window
         if (_update is null)
             SetStatus("Ready");
         _ = UpdateMusicAsync(announce: false);
+    }
+
+    // Removes the account named in the box, and its password, straight away.
+    private void ForgetAccount_Click(object sender, RoutedEventArgs e)
+    {
+        var name = AccountBox.Text.Trim();
+        var saved = _config.FindAccount(name);
+        if (name.Length == 0 || saved is null)
+        {
+            SettingsError.Text = name.Length == 0
+                ? "Type the name of the account to forget."
+                : $"There's no saved account called {name}.";
+            SettingsError.Visibility = Visibility.Visible;
+            return;
+        }
+
+        _config.Accounts.Remove(saved);
+        if (string.Equals(_config.AccountName.Trim(), name, StringComparison.OrdinalIgnoreCase))
+            _config.AccountName = string.Empty;
+
+        try
+        {
+            // Otherwise the game's own memory of it would bring it straight back.
+            var folder = _config.ClientLocation;
+            if (string.Equals(ConfigWtf.Get(folder, "accountName")?.Trim(), name, StringComparison.OrdinalIgnoreCase))
+                ConfigWtf.Remove(folder, "accountName");
+
+            _store.Save(_config);
+        }
+        catch (Exception ex)
+        {
+            SettingsError.Text = $"The account couldn't be forgotten: {ex.Message}";
+            SettingsError.Visibility = Visibility.Visible;
+            return;
+        }
+
+        AccountBox.Text = _config.AccountName;
+        AccountPasswordBox.Clear();
+        SettingsError.Visibility = Visibility.Collapsed;
+        RefreshLastPlayed();
     }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)

@@ -3,6 +3,12 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.4.0
+
+- Several accounts: every account you save in Settings, or log in with from the game, is remembered. Once there is more than one, the account under Play becomes a drop-down for choosing who to play as.
+- Realms work the same way: once the game has been on more than one realm, the realm under Play becomes a drop-down, and the game goes to the one you choose.
+- Settings has a "Forget this account" link to remove an account and its password.
+
 ## 1.3.0
 
 - Auto-login: enter your account name and password in Settings and tick "Log in automatically". Play then logs you in once the game's login screen is up. The password is saved encrypted for your Windows account on this PC.

@@ -30,14 +30,58 @@ public class LauncherConfig
     // 0 to 1.
     public double MusicVolume { get; set; } = 0.1;
 
-    // Filled in on the game's login screen when set.
+    // The account to play as: filled in on the game's login screen when set.
     public string AccountName { get; set; } = string.Empty;
 
-    // Auto-login: after Play, the launcher types the account's password into
-    // the game's login screen. The password is kept encrypted (see
-    // SavedPassword) and only while auto-login is on.
+    // Every account entered in Settings or seen in the game's own settings;
+    // the launcher offers them in a drop-down once there is more than one.
+    public List<SavedAccount> Accounts { get; set; } = [];
+
+    // Auto-login: after Play, the launcher types the chosen account's
+    // password into the game's login screen. Passwords are kept encrypted
+    // (see SavedPassword) and only while auto-login is on.
     public bool AutoLogin { get; set; }
+
+    // The realm to enter, written to the game's realmName setting before it
+    // starts. Empty leaves the game on the realm it remembers.
+    public string Realm { get; set; } = string.Empty;
+
+    // Realms the game has been seen on, for the realm drop-down.
+    public List<string> Realms { get; set; } = [];
+
+    // Where 1.3.0 kept its single password; moved into Accounts on load.
     public string ProtectedPassword { get; set; } = string.Empty;
+
+    public SavedAccount? FindAccount(string name) =>
+        Accounts.Find(a => string.Equals(a.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    // Adds the account if it's new. Returns the saved entry, or null for a blank name.
+    public SavedAccount? RememberAccount(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0)
+            return null;
+
+        var account = FindAccount(name);
+        if (account is null)
+        {
+            account = new SavedAccount { Name = name };
+            Accounts.Add(account);
+        }
+
+        return account;
+    }
+
+    // Returns true when the realm was new.
+    public bool RememberRealm(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0 || Realms.Exists(r => string.Equals(r, name, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        Realms.Add(name);
+        return true;
+    }
 
     // Returns the client executable to start, or null when the folder has none.
     public string? FindClientExecutable()
@@ -55,6 +99,14 @@ public class LauncherConfig
             _ => File.Exists(x64) ? x64 : File.Exists(x86) ? x86 : null
         };
     }
+}
+
+public class SavedAccount
+{
+    public string Name { get; set; } = string.Empty;
+
+    // Empty when no password is saved for this account.
+    public string ProtectedPassword { get; set; } = string.Empty;
 }
 
 public class ConfigStore
@@ -90,6 +142,20 @@ public class ConfigStore
         {
             config = new LauncherConfig();
         }
+
+        // A hand-edited file can leave these null or with blank entries.
+        config.Accounts = (config.Accounts ?? []).Where(a => !string.IsNullOrWhiteSpace(a?.Name)).ToList();
+        config.Realms = (config.Realms ?? []).Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
+        config.AccountName ??= string.Empty;
+        config.Realm ??= string.Empty;
+
+        // 1.3.0 had one account, with its password at the top level.
+        if (config.RememberAccount(config.AccountName) is { } current && !string.IsNullOrEmpty(config.ProtectedPassword))
+        {
+            if (current.ProtectedPassword.Length == 0)
+                current.ProtectedPassword = config.ProtectedPassword;
+        }
+        config.ProtectedPassword = string.Empty;
 
         // Dropped into the game folder? Then there's nothing to ask.
         if (string.IsNullOrWhiteSpace(config.ClientLocation))
