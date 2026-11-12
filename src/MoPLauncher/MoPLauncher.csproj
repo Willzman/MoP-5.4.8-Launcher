@@ -14,7 +14,7 @@
     <!-- The one place the launcher's version lives. Bump it (and add a
          CHANGELOG.md entry) and push to main: the workflow publishes a
          release, and every installed launcher offers the update. -->
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Copyright>GPL-3.0. Patches based on the Project SkyFire launcher.</Copyright>
 
