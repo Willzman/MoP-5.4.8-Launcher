@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.5.3
+
+- The launcher's menu fixes (the character creation screen's black side bars and panel borders) are now applied only when "Use the full width of ultrawide screens in the menus" is ticked. With it off, the game's menus are left exactly as they ship.
+
 ## 1.5.2
 
 - Character creation: the class panel's border is now centred on the class icons, and the customization column's border on its portraits (its number badge now overlaps the selected portrait a little).

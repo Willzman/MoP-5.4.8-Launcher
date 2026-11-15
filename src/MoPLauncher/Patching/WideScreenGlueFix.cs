@@ -3,7 +3,10 @@ using System.Text;
 
 namespace MoPLauncher.Patching;
 
-// Fixes the character creation screen on screens wider than 16:9.
+// Fixes the character creation screen on screens wider than 16:9, and makes
+// the menus use the full width of such screens. Installed only when the
+// "full width of ultrawide screens" setting is on; with it off the client's
+// menus are not touched at all.
 //
 // The client's GlueXML caps the glue UI at 16:9: GlueParent_OnLoad in
 // GlueParent.lua shrinks GlueParent once and leaves black bars at the sides. The
@@ -30,7 +33,7 @@ namespace MoPLauncher.Patching;
 // points at a short jump written into int3 padding inside .text, and that
 // jump goes on to the stub in the allocated block.
 //
-// Wide menus (optional): SetGlueScreen calls SetCurrentScreen on every screen
+// Wide menus: SetGlueScreen calls SetCurrentScreen on every screen
 // change, the first login screen included. Hooked the same way, it anchors
 // GlueParent back to the whole screen, undoing GlueParent_OnLoad's 16:9 cap
 // for every menu screen. Nothing in the glue applies the cap again, but a
@@ -185,8 +188,7 @@ internal static class WideScreenGlueFix
 
     // `image` is the client's main module as read from its memory, so the
     // pointers in it are already relocated to where the module is loaded.
-    // With `wideMenus` the menus also use the full width of the screen.
-    public static void Install(IntPtr hProcess, IntPtr baseAddress, byte[] image, bool is64Bit, bool wideMenus)
+    public static void Install(IntPtr hProcess, IntPtr baseAddress, byte[] image, bool is64Bit)
     {
         var (pattern, callOffset) = is64Bit ? RunScriptTailX64 : RunScriptTailX86;
         var tail = FindUnique(image, pattern);
@@ -195,12 +197,11 @@ internal static class WideScreenGlueFix
         var callEnd = tail + callOffset + 5;
         var execute = baseAddress.ToInt64() + callEnd + BitConverter.ToInt32(image, tail + callOffset + 1);
 
-        // The masks stay on with wide menus: they then sit off-screen, and
-        // they still cover the bars if the widening doesn't take.
+        // The masks sit off-screen once the menus are widened, and they still
+        // cover the bars if the widening doesn't take.
         var caveSearchStart = 0;
         InstallHook(hProcess, baseAddress, image, is64Bit, execute, MaskHookedFunction, MaskSnippet, ref caveSearchStart);
-        if (wideMenus)
-            InstallHook(hProcess, baseAddress, image, is64Bit, execute, WideHookedFunction, WideSnippet, ref caveSearchStart);
+        InstallHook(hProcess, baseAddress, image, is64Bit, execute, WideHookedFunction, WideSnippet, ref caveSearchStart);
     }
 
     // Points `functionName`'s registration entry at a jump in .text, which
