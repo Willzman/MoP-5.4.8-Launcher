@@ -135,6 +135,15 @@ public static class ClientLauncher
             if (matched == 0)
                 throw new InvalidOperationException(
                     $"{Path.GetFileName(exePath)} doesn't look like a Mists of Pandaria 5.4.8 (build 18414) client.");
+
+            // Cosmetic only: if it can't be applied, the game still plays.
+            try
+            {
+                WideScreenGlueFix.Install(hProcess, baseAddress, image, is64Bit);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
+            {
+            }
         }
         finally
         {

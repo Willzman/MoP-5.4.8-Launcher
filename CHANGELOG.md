@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.4.1
+
+- Fixed the character creation screen on ultrawide (wider than 16:9) screens: the class panel and the customization column no longer spill a dark strip into the black bar on the right.
+
 ## 1.4.0
 
 - Several accounts: every account you save in Settings, or log in with from the game, is remembered. Once there is more than one, the account under Play becomes a drop-down for choosing who to play as.
