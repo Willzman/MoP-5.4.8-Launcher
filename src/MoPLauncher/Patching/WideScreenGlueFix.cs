@@ -24,6 +24,11 @@ namespace MoPLauncher.Patching;
 // calls) on the snippet, then jumps to the real GetAvailableRaces. The stub
 // runs on the game's main thread, inside a Lua call, the same way RunScript
 // does.
+//
+// The client refuses to call a Lua C function that isn't inside its own .text
+// section ("ERROR #134 ... Invalid function pointer"). So the table entry
+// points at a short jump written into int3 padding inside .text, and that
+// jump goes on to the stub in the allocated block.
 internal static class WideScreenGlueFix
 {
     private const string HookedFunction = "GetAvailableRaces";
@@ -108,8 +113,54 @@ internal static class WideScreenGlueFix
         if (!Native.WriteProcessMemory(hProcess, allocBase, block, block.Length, out _))
             throw new Win32Exception("Could not write the wide screen fix into client memory");
 
+        // mov rax/eax, stub; jmp rax/eax
+        byte[] jump = is64Bit
+            ? [0x48, 0xB8, .. BitConverter.GetBytes(allocBase.ToInt64()), 0xFF, 0xE0]
+            : [0xB8, .. BitConverter.GetBytes((uint)allocBase.ToInt64()), 0xFF, 0xE0];
+        var cave = FindCodeCave(image, jump.Length);
+        if (cave < 0)
+            throw new InvalidOperationException("Could not find room for the wide screen fix in the client's code.");
+        RemoteMemory.WriteCode(hProcess, IntPtr.Add(baseAddress, cave), jump, "the wide screen fix jump");
+
         RemoteMemory.Write(hProcess, IntPtr.Add(baseAddress, entryOffset + ptrSize),
-            RemoteMemory.PointerBytes(allocBase, is64Bit), $"the client's {HookedFunction} entry");
+            RemoteMemory.PointerBytes(IntPtr.Add(baseAddress, cave), is64Bit), $"the client's {HookedFunction} entry");
+    }
+
+    // Returns the offset of a 16-byte-aligned run of int3 padding inside the
+    // image's first executable section (.text), with int3 on both sides, that
+    // has room for `size` bytes; or -1. The padding between functions is never
+    // executed, so it can hold the jump.
+    private static int FindCodeCave(byte[] image, int size)
+    {
+        const uint ImageScnMemExecute = 0x20000000;
+        var needed = (size + 15) & ~15;
+
+        var pe = BitConverter.ToInt32(image, 0x3C);
+        var sectionCount = BitConverter.ToUInt16(image, pe + 6);
+        var sectionTable = pe + 24 + BitConverter.ToUInt16(image, pe + 20);
+
+        for (var s = 0; s < sectionCount; s++)
+        {
+            var header = sectionTable + 40 * s;
+            if ((BitConverter.ToUInt32(image, header + 36) & ImageScnMemExecute) == 0)
+                continue;
+
+            var start = (int)BitConverter.ToUInt32(image, header + 12);
+            var end = Math.Min(start + (int)BitConverter.ToUInt32(image, header + 8), image.Length);
+
+            for (var at = (start + 16) & ~15; at + needed < end; at += 16)
+            {
+                var free = true;
+                for (var i = -1; i <= needed && free; i++)
+                    free = image[at + i] == 0xCC;
+                if (free)
+                    return at;
+            }
+
+            return -1; // only .text is accepted by the client's check
+        }
+
+        return -1;
     }
 
     // Lua C functions take the lua_State in rcx. It's kept across the call
