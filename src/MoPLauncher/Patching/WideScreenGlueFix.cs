@@ -186,7 +186,7 @@ internal static class WideScreenGlueFix
             for (var at = (Math.Max(start, from) + 16) & ~15; at + needed < end; at += 16)
             {
                 var free = true;
-                for (var i = -1; i <= needed && free; i++)
+                for (var i = -1; i < needed && free; i++)
                     free = image[at + i] == 0xCC;
                 if (free)
                     return at;

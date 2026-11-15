@@ -6,6 +6,7 @@ launcher shows in its "What's new" panel.
 ## 1.5.0
 
 - New setting (experimental): "Use the full width of ultrawide screens in the menus". The login, character list and character creation screens then fill a screen wider than 16:9 instead of keeping black bars at the sides. Off by default.
+- The character creation fix for ultrawide screens from 1.4.1 now also applies to the 64-bit client (Wow-64.exe), which 1.4.2 skipped.
 
 ## 1.4.2
 
