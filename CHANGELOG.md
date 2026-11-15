@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.5.1
+
+- Character creation: the class panel and the customization column now have a border on their right side. Both run off the right edge of the screen in the original layout, so their right border never showed; the panels themselves are not moved. The customization column's new border sits over the last few pixels of its portraits.
+
 ## 1.5.0
 
 - New setting (experimental): "Use the full width of ultrawide screens in the menus". The login, character list and character creation screens then fill a screen wider than 16:9 instead of keeping black bars at the sides. Off by default.

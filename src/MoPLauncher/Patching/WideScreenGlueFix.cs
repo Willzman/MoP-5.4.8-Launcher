@@ -56,10 +56,81 @@ internal static class WideScreenGlueFix
 
     // Runs on every CharacterCreate_OnShow, so it must be cheap and must never
     // raise a Lua error (that would pop up the glue's error dialog).
+    //
+    // It also closes the right-hand border of the class panel and of the
+    // customization column, once per glue load. Both are laid out to run off
+    // the right edge (by 117 and 77 px, from CharacterCreate.xml), so their
+    // right border is never seen. Nothing is moved: the top and bottom edge
+    // pieces are cut to the left half of the visible width, and a mirrored
+    // copy of that half (the art is symmetric) ends at the screen edge, with a
+    // side edge under it. The customization column never had a right edge; the
+    // new one sits over the last few pixels of its portraits.
     private const string MaskSnippet = """
         pcall(function()
           if not GlueParent or not CharacterCreate then return end
           if CreateFrame then
+            if not MoPLauncherBorders then
+              MoPLauncherBorders = true
+              pcall(function()
+                local art = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreatePatchwerk"
+                local left = 0.42382813
+                local function close(f, holder, layer, cut, top, bottom, edge)
+                  local half = (243 - cut) / 2
+                  local mid = left + half / 512
+                  local ends = {}
+                  for i, p in ipairs({ { top, 0.68847656, 0.73535156, "TOP" }, { bottom, 0.73730469, 0.78222656, "BOTTOM" } }) do
+                    local tex, t1, t2, side = p[1], p[2], p[3], p[4]
+                    local height = tex:GetHeight()
+                    tex:ClearAllPoints()
+                    tex:SetPoint(side .. "LEFT", f, side .. "LEFT", 0, 0)
+                    tex:SetWidth(half)
+                    tex:SetTexCoord(left, mid, t1, t2)
+                    local mirror = holder:CreateTexture(nil, layer)
+                    mirror:SetTexture(art)
+                    mirror:SetWidth(half)
+                    mirror:SetHeight(height)
+                    mirror:SetPoint(side .. "RIGHT", f, side .. "RIGHT", -cut, 0)
+                    mirror:SetTexCoord(mid, left, t1, t2)
+                    ends[i] = mirror
+                  end
+                  if not edge then
+                    edge = holder:CreateTexture(nil, layer)
+                    edge:SetTexture("Interface\\Glues\\CharacterCreate\\Frame-Sides")
+                    edge:SetWidth(16)
+                    edge:SetTexCoord(0, 0.5, 0, 1)
+                    pcall(edge.SetDrawLayer, edge, layer, -1)
+                  end
+                  edge:ClearAllPoints()
+                  edge:SetPoint("TOPRIGHT", ends[1], "BOTTOMRIGHT", 0, 10)
+                  edge:SetPoint("BOTTOMRIGHT", ends[2], "TOPRIGHT", 0, -10)
+                  if f.factionBg then
+                    f.factionBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8 - cut, 10)
+                  end
+                end
+
+                if CharCreateClassFrameTopEdge and CharCreateClassFrameBottomEdge and CharCreateClassFrameRightEdge then
+                  close(CharCreateClassFrame, CharCreateClassFrame, "ARTWORK", 117,
+                    CharCreateClassFrameTopEdge, CharCreateClassFrameBottomEdge, CharCreateClassFrameRightEdge)
+                end
+
+                local border = CharCreatePreviewFrame and CharCreatePreviewFrame.border
+                if border then
+                  local top, bottom, extra = nil, nil, {}
+                  for _, r in ipairs({ border:GetRegions() }) do
+                    if r:GetObjectType() == "Texture" then
+                      local w, h = math.floor(r:GetWidth() + 0.5), math.floor(r:GetHeight() + 0.5)
+                      if w == 183 and h == 48 then top = r
+                      elseif w == 183 and h == 46 then bottom = r
+                      elseif w == 50 and (h == 48 or h == 46) then extra[#extra + 1] = r end
+                    end
+                  end
+                  if top and bottom and #extra == 2 then
+                    for _, r in ipairs(extra) do r:Hide() end
+                    close(CharCreatePreviewFrame, border, "BORDER", 77, top, bottom, nil)
+                  end
+                end
+              end)
+            end
             if MoPLauncherWideMask then return end
             MoPLauncherWideMask = true
             for _, side in ipairs({ "LEFT", "RIGHT" }) do
