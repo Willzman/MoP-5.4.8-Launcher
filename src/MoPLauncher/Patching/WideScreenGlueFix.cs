@@ -65,6 +65,11 @@ internal static class WideScreenGlueFix
     // copy of that half (the art is symmetric) ends at the screen edge, with a
     // side edge under it. The customization column never had a right edge; the
     // new one sits over the last few pixels of its portraits.
+    //
+    // The class panel's title and buttons are centred 71.5 px from its left
+    // edge, 8.5 px right of the middle of its 126 visible px. Its left border
+    // and background (and the class info box, which hangs off that border) go
+    // 17 px to the right, so the border is centred on them; they don't move.
     private const string MaskSnippet = """
         pcall(function()
           if not GlueParent or not CharacterCreate then return end
@@ -74,15 +79,15 @@ internal static class WideScreenGlueFix
               pcall(function()
                 local art = "Interface\\Glues\\CharacterCreate\\UI-CharacterCreatePatchwerk"
                 local left = 0.42382813
-                local function close(f, holder, layer, cut, top, bottom, edge)
-                  local half = (243 - cut) / 2
+                local function close(f, holder, layer, cut, inset, top, bottom, edge)
+                  local half = (243 - cut - inset) / 2
                   local mid = left + half / 512
                   local ends = {}
                   for i, p in ipairs({ { top, 0.68847656, 0.73535156, "TOP" }, { bottom, 0.73730469, 0.78222656, "BOTTOM" } }) do
                     local tex, t1, t2, side = p[1], p[2], p[3], p[4]
                     local height = tex:GetHeight()
                     tex:ClearAllPoints()
-                    tex:SetPoint(side .. "LEFT", f, side .. "LEFT", 0, 0)
+                    tex:SetPoint(side .. "LEFT", f, side .. "LEFT", inset, 0)
                     tex:SetWidth(half)
                     tex:SetTexCoord(left, mid, t1, t2)
                     local mirror = holder:CreateTexture(nil, layer)
@@ -104,13 +109,18 @@ internal static class WideScreenGlueFix
                   edge:SetPoint("TOPRIGHT", ends[1], "BOTTOMRIGHT", 0, 10)
                   edge:SetPoint("BOTTOMRIGHT", ends[2], "TOPRIGHT", 0, -10)
                   if f.factionBg then
+                    f.factionBg:SetPoint("TOPLEFT", f, "TOPLEFT", 8 + inset, -10)
                     f.factionBg:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8 - cut, 10)
                   end
                 end
 
                 if CharCreateClassFrameTopEdge and CharCreateClassFrameBottomEdge and CharCreateClassFrameRightEdge then
-                  close(CharCreateClassFrame, CharCreateClassFrame, "ARTWORK", 117,
+                  close(CharCreateClassFrame, CharCreateClassFrame, "ARTWORK", 117, 17,
                     CharCreateClassFrameTopEdge, CharCreateClassFrameBottomEdge, CharCreateClassFrameRightEdge)
+                  if CharCreateClassInfoFrame then
+                    CharCreateClassInfoFrame:ClearAllPoints()
+                    CharCreateClassInfoFrame:SetPoint("BOTTOMRIGHT", CharCreateClassFrame, "BOTTOMLEFT", 17 - 1, 51)
+                  end
                 end
 
                 local border = CharCreatePreviewFrame and CharCreatePreviewFrame.border
@@ -126,7 +136,7 @@ internal static class WideScreenGlueFix
                   end
                   if top and bottom and #extra == 2 then
                     for _, r in ipairs(extra) do r:Hide() end
-                    close(CharCreatePreviewFrame, border, "BORDER", 77, top, bottom, nil)
+                    close(CharCreatePreviewFrame, border, "BORDER", 77, 0, top, bottom, nil)
                   end
                 end
               end)
