@@ -72,7 +72,7 @@ internal static class WideScreenGlueFix
     // 17 px to the right, so the border is centred on them; they don't move.
     // The customization column's left border and background go 17 px in too,
     // which evens the gaps either side of its portraits (26 and 8 screen px
-    // before, at 1440 px high). Its arrow badge, anchored to that border,
+    // before, on a 2000x837 screenshot). Its arrow badge, anchored to that border,
     // moves with it and overlaps the selected portrait's frame a little.
     private const string MaskSnippet = """
         pcall(function()
