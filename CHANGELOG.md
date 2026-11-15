@@ -5,7 +5,7 @@ launcher shows in its "What's new" panel.
 
 ## 1.5.2
 
-- Character creation: the class panel's border is now centred on the class icons.
+- Character creation: the class panel's border is now centred on the class icons, and the customization column's border on its portraits (its number badge now overlaps the selected portrait a little).
 
 ## 1.5.1
 

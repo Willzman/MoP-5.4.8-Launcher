@@ -70,6 +70,10 @@ internal static class WideScreenGlueFix
     // edge, 8.5 px right of the middle of its 126 visible px. Its left border
     // and background (and the class info box, which hangs off that border) go
     // 17 px to the right, so the border is centred on them; they don't move.
+    // The customization column's left border and background go 17 px in too,
+    // which evens the gaps either side of its portraits (26 and 8 screen px
+    // before, at 1440 px high). Its arrow badge, anchored to that border,
+    // moves with it and overlaps the selected portrait's frame a little.
     private const string MaskSnippet = """
         pcall(function()
           if not GlueParent or not CharacterCreate then return end
@@ -136,7 +140,11 @@ internal static class WideScreenGlueFix
                   end
                   if top and bottom and #extra == 2 then
                     for _, r in ipairs(extra) do r:Hide() end
-                    close(CharCreatePreviewFrame, border, "BORDER", 77, 0, top, bottom, nil)
+                    close(CharCreatePreviewFrame, border, "BORDER", 77, 17, top, bottom, nil)
+                    if border.arrow then
+                      border.arrow:ClearAllPoints()
+                      border.arrow:SetPoint("RIGHT", border, "LEFT", 33 + 17, -4)
+                    end
                   end
                 end
               end)
