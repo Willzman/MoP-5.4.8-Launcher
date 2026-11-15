@@ -5,8 +5,8 @@ namespace MoPLauncher.Patching;
 
 // Fixes the character creation screen on screens wider than 16:9.
 //
-// The client's GlueXML caps the glue UI at 16:9: GlueParent_OnResize in
-// GlueParent.lua shrinks GlueParent and leaves black bars at the sides. The
+// The client's GlueXML caps the glue UI at 16:9: GlueParent_OnLoad in
+// GlueParent.lua shrinks GlueParent once and leaves black bars at the sides. The
 // class panel (CharCreateClassFrame) is anchored 117 px past GlueParent's
 // right edge, and the customization preview column (CharCreatePreviewFrame)
 // 77 px past it, so that at 16:9 their right parts are off-screen. On a wider
@@ -29,14 +29,34 @@ namespace MoPLauncher.Patching;
 // section ("ERROR #134 ... Invalid function pointer"). So the table entry
 // points at a short jump written into int3 padding inside .text, and that
 // jump goes on to the stub in the allocated block.
+//
+// Wide menus (optional): SetGlueScreen calls SetCurrentScreen on every screen
+// change, the first login screen included. Hooked the same way, it anchors
+// GlueParent back to the whole screen, undoing GlueParent_OnLoad's 16:9 cap
+// for every menu screen. Nothing in the glue applies the cap again, but a
+// reloaded glue (after leaving the world) does, so the next screen change
+// widens it again.
 internal static class WideScreenGlueFix
 {
-    private const string HookedFunction = "GetAvailableRaces";
+    private const string MaskHookedFunction = "GetAvailableRaces";
+    private const string WideHookedFunction = "SetCurrentScreen";
     private const string SourceName = "MoPLauncher";
+
+    // Runs on every screen change. The flag lives on the frame, so a reloaded
+    // glue, which recreates GlueParent with the cap, is widened again.
+    private const string WideSnippet = """
+        pcall(function()
+          if not GlueParent or GlueParent.MoPLauncherWide then return end
+          GlueParent.MoPLauncherWide = true
+          GlueParent:ClearAllPoints()
+          GlueParent:SetPoint("TOPLEFT", 0, 0)
+          GlueParent:SetPoint("BOTTOMRIGHT", 0, 0)
+        end)
+        """;
 
     // Runs on every CharacterCreate_OnShow, so it must be cheap and must never
     // raise a Lua error (that would pop up the glue's error dialog).
-    private const string Snippet = """
+    private const string MaskSnippet = """
         pcall(function()
           if not GlueParent or not CharacterCreate then return end
           if CreateFrame then
@@ -76,26 +96,40 @@ internal static class WideScreenGlueFix
 
     // `image` is the client's main module as read from its memory, so the
     // pointers in it are already relocated to where the module is loaded.
-    public static void Install(IntPtr hProcess, IntPtr baseAddress, byte[] image, bool is64Bit)
+    // With `wideMenus` the menus also use the full width of the screen.
+    public static void Install(IntPtr hProcess, IntPtr baseAddress, byte[] image, bool is64Bit, bool wideMenus)
     {
-        var ptrSize = is64Bit ? 8 : 4;
-        var moduleBase = baseAddress.ToInt64();
-
-        var entryOffset = FindRegistrationEntry(image, moduleBase, HookedFunction, ptrSize);
-        if (entryOffset < 0)
-            throw new InvalidOperationException($"Could not find {HookedFunction} in the client.");
-        var original = ReadPointer(image, entryOffset + ptrSize, ptrSize);
-        if (original < moduleBase || original >= moduleBase + image.Length)
-            throw new InvalidOperationException($"{HookedFunction} doesn't point into the client.");
-
         var (pattern, callOffset) = is64Bit ? RunScriptTailX64 : RunScriptTailX86;
         var tail = FindUnique(image, pattern);
         if (tail < 0)
             throw new InvalidOperationException("Could not find the client's script runner.");
         var callEnd = tail + callOffset + 5;
-        var execute = moduleBase + callEnd + BitConverter.ToInt32(image, tail + callOffset + 1);
+        var execute = baseAddress.ToInt64() + callEnd + BitConverter.ToInt32(image, tail + callOffset + 1);
 
-        var code = Encoding.ASCII.GetBytes(Snippet.Replace("\r\n", "\n") + '\0');
+        // The masks stay on with wide menus: they then sit off-screen, and
+        // they still cover the bars if the widening doesn't take.
+        var caveSearchStart = 0;
+        InstallHook(hProcess, baseAddress, image, is64Bit, execute, MaskHookedFunction, MaskSnippet, ref caveSearchStart);
+        if (wideMenus)
+            InstallHook(hProcess, baseAddress, image, is64Bit, execute, WideHookedFunction, WideSnippet, ref caveSearchStart);
+    }
+
+    // Points `functionName`'s registration entry at a jump in .text, which
+    // goes to a stub that runs `snippet` and then the real function.
+    private static void InstallHook(IntPtr hProcess, IntPtr baseAddress, byte[] image, bool is64Bit, long execute,
+        string functionName, string snippet, ref int caveSearchStart)
+    {
+        var ptrSize = is64Bit ? 8 : 4;
+        var moduleBase = baseAddress.ToInt64();
+
+        var entryOffset = FindRegistrationEntry(image, moduleBase, functionName, ptrSize);
+        if (entryOffset < 0)
+            throw new InvalidOperationException($"Could not find {functionName} in the client.");
+        var original = ReadPointer(image, entryOffset + ptrSize, ptrSize);
+        if (original < moduleBase || original >= moduleBase + image.Length)
+            throw new InvalidOperationException($"{functionName} doesn't point into the client.");
+
+        var code = Encoding.ASCII.GetBytes(snippet.Replace("\r\n", "\n") + '\0');
         var name = Encoding.ASCII.GetBytes(SourceName + '\0');
         var stubSize = is64Bit ? 64 : 32;
         var block = new byte[stubSize + name.Length + code.Length];
@@ -117,20 +151,21 @@ internal static class WideScreenGlueFix
         byte[] jump = is64Bit
             ? [0x48, 0xB8, .. BitConverter.GetBytes(allocBase.ToInt64()), 0xFF, 0xE0]
             : [0xB8, .. BitConverter.GetBytes((uint)allocBase.ToInt64()), 0xFF, 0xE0];
-        var cave = FindCodeCave(image, jump.Length);
+        var cave = FindCodeCave(image, jump.Length, caveSearchStart);
         if (cave < 0)
             throw new InvalidOperationException("Could not find room for the wide screen fix in the client's code.");
+        caveSearchStart = cave + ((jump.Length + 15) & ~15) + 16;
         RemoteMemory.WriteCode(hProcess, IntPtr.Add(baseAddress, cave), jump, "the wide screen fix jump");
 
         RemoteMemory.Write(hProcess, IntPtr.Add(baseAddress, entryOffset + ptrSize),
-            RemoteMemory.PointerBytes(IntPtr.Add(baseAddress, cave), is64Bit), $"the client's {HookedFunction} entry");
+            RemoteMemory.PointerBytes(IntPtr.Add(baseAddress, cave), is64Bit), $"the client's {functionName} entry");
     }
 
     // Returns the offset of a 16-byte-aligned run of int3 padding inside the
     // image's first executable section (.text), with int3 on both sides, that
-    // has room for `size` bytes; or -1. The padding between functions is never
-    // executed, so it can hold the jump.
-    private static int FindCodeCave(byte[] image, int size)
+    // has room for `size` bytes, at or after `from`; or -1. The padding between
+    // functions is never executed, so it can hold the jump.
+    private static int FindCodeCave(byte[] image, int size, int from)
     {
         const uint ImageScnMemExecute = 0x20000000;
         var needed = (size + 15) & ~15;
@@ -148,10 +183,10 @@ internal static class WideScreenGlueFix
             var start = (int)BitConverter.ToUInt32(image, header + 12);
             var end = Math.Min(start + (int)BitConverter.ToUInt32(image, header + 8), image.Length);
 
-            for (var at = (start + 16) & ~15; at + needed < end; at += 16)
+            for (var at = (Math.Max(start, from) + 16) & ~15; at + needed < end; at += 16)
             {
                 var free = true;
-                for (var i = -1; i <= needed && free; i++)
+                for (var i = -1; i < needed && free; i++)
                     free = image[at + i] == 0xCC;
                 if (free)
                     return at;

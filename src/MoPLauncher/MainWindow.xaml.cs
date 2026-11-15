@@ -329,6 +329,7 @@ public partial class MainWindow : Window
             var folder = _config.ClientLocation;
             var clearCache = _config.ClearCacheOnLaunch;
             var redirect = _config.RedirectAllConnections;
+            var wideMenus = _config.WideMenus;
             var account = _config.AccountName.Trim();
             var realm = _config.Realm.Trim();
             var password = _config.AutoLogin && account.Length > 0
@@ -353,7 +354,7 @@ public partial class MainWindow : Window
                 if (realm.Length > 0)
                     ConfigWtf.Set(folder, "realmName", realm);
 
-                return ClientLauncher.Launch(exePath, folder, endpoint.Address, endpoint.Port, redirect);
+                return ClientLauncher.Launch(exePath, folder, endpoint.Address, endpoint.Port, redirect, wideMenus);
             });
 
             // The game has its own music from here on.
@@ -662,6 +663,7 @@ public partial class MainWindow : Window
         Arch32.IsChecked = _config.Architecture == ClientArchitecture.X86;
         ClearCacheBox.IsChecked = _config.ClearCacheOnLaunch;
         RedirectBox.IsChecked = _config.RedirectAllConnections;
+        WideMenusBox.IsChecked = _config.WideMenus;
         AccountBox.Text = _config.AccountName;
         AutoLoginBox.IsChecked = _config.AutoLogin;
         // The saved password is never put back in the box; blank keeps it.
@@ -697,6 +699,7 @@ public partial class MainWindow : Window
                 : ClientArchitecture.Auto,
             ClearCacheOnLaunch = ClearCacheBox.IsChecked == true,
             RedirectAllConnections = RedirectBox.IsChecked == true,
+            WideMenus = WideMenusBox.IsChecked == true,
             AccountName = AccountBox.Text.Trim(),
             AutoLogin = AutoLoginBox.IsChecked == true,
             MusicEnabled = _config.MusicEnabled,

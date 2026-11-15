@@ -24,6 +24,11 @@ public class LauncherConfig
     // world server runs on a different machine from the login server.
     public bool RedirectAllConnections { get; set; } = true;
 
+    // Lets the login, character list and character creation screens use the
+    // full width of screens wider than 16:9, instead of the black bars the
+    // client leaves at the sides. Off by default while it is being tried.
+    public bool WideMenus { get; set; }
+
     // Plays the client's own login screen music while the launcher is open.
     public bool MusicEnabled { get; set; } = true;
 
