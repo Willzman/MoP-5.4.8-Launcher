@@ -23,6 +23,25 @@ internal static class RemoteMemory
         }
     }
 
+    // Overwrites bytes inside the running client's code. The page stays
+    // executable while it is written, since other threads may be running code
+    // on it.
+    public static void WriteCode(IntPtr hProcess, IntPtr address, byte[] data, string what)
+    {
+        if (!Native.VirtualProtectEx(hProcess, address, (UIntPtr)data.Length, Native.PAGE_EXECUTE_READWRITE, out var oldProtect))
+            throw new Win32Exception($"Could not unprotect {what}");
+
+        try
+        {
+            if (!Native.WriteProcessMemory(hProcess, address, data, data.Length, out _))
+                throw new Win32Exception($"Could not write {what}");
+        }
+        finally
+        {
+            Native.VirtualProtectEx(hProcess, address, (UIntPtr)data.Length, oldProtect, out _);
+        }
+    }
+
     // Allocates an executable block in the target and returns its address.
     public static IntPtr AllocateExecutable(IntPtr hProcess, int size, string what)
     {
