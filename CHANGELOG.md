@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.5.0
+
+- New setting (experimental): "Use the full width of ultrawide screens in the menus". The login, character list and character creation screens then fill a screen wider than 16:9 instead of keeping black bars at the sides. Off by default.
+
 ## 1.4.2
 
 - Fixed a crash (ERROR #134, "Invalid function pointer") when opening the character creation screen, caused by the ultrawide fix in 1.4.1.

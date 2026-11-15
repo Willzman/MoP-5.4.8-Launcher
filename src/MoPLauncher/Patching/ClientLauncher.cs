@@ -39,7 +39,8 @@ public static class ClientLauncher
     ];
 
     // Returns the process id of the started client.
-    public static int Launch(string exePath, string workingDirectory, IPAddress server, int loginPort, bool redirectAllConnections)
+    public static int Launch(string exePath, string workingDirectory, IPAddress server, int loginPort, bool redirectAllConnections,
+        bool wideMenus)
     {
         if (server.AddressFamily != AddressFamily.InterNetwork)
             throw new NotSupportedException("Only IPv4 server addresses are supported.");
@@ -58,7 +59,7 @@ public static class ClientLauncher
 
         try
         {
-            Patch(processInfo.dwProcessId, exePath, exeFile, is64Bit, server, loginPort, redirectAllConnections);
+            Patch(processInfo.dwProcessId, exePath, exeFile, is64Bit, server, loginPort, redirectAllConnections, wideMenus);
             return processInfo.dwProcessId;
         }
         catch
@@ -76,7 +77,7 @@ public static class ClientLauncher
     }
 
     private static void Patch(int processId, string exePath, byte[] exeFile, bool is64Bit,
-        IPAddress server, int loginPort, bool redirectAllConnections)
+        IPAddress server, int loginPort, bool redirectAllConnections, bool wideMenus)
     {
         var (baseAddress, moduleSize) = GetMainModule(processId, Path.GetFileName(exePath));
 
@@ -139,7 +140,7 @@ public static class ClientLauncher
             // Cosmetic only: if it can't be applied, the game still plays.
             try
             {
-                WideScreenGlueFix.Install(hProcess, baseAddress, image, is64Bit);
+                WideScreenGlueFix.Install(hProcess, baseAddress, image, is64Bit, wideMenus);
             }
             catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
             {
