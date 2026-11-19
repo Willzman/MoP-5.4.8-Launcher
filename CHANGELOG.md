@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.5.4
+
+- Character creation on ultrawide screens: the customization portraits (faces, hair and so on) are no longer zoomed in so far that the hair clips through the face. Needs "Use the full width of ultrawide screens in the menus" ticked.
+
 ## 1.5.3
 
 - The launcher's menu fixes (the character creation screen's black side bars and panel borders) are now applied only when "Use the full width of ultrawide screens in the menus" is ticked. With it off, the game's menus are left exactly as they ship.
