@@ -66,7 +66,7 @@ The patch set is the classic-login one from the
 | DNS hook | Points the client's `gethostbyname` import at a stub that always returns the server |
 | Connect redirect | Points the client's `connect` import at a stub that sends every IPv4 connection to the server |
 | Login flow | Five small byte patches that make the client use the classic realmlist login |
-| Wide screen fix | Only with the "full width of ultrawide screens" setting on: the menus fill screens wider than 16:9, and the character creation screen's class panel and customization column get a right border (skipped if it can't be applied). With the setting off, the menus are not patched |
+| Wide screen fix | Only with the "full width of ultrawide screens" setting on: the menus fill screens wider than 16:9, and the character creation screen's class panel and customization column get a right border, and its portraits are zoomed back out to their 16:9 framing (skipped if it can't be applied). With the setting off, the menus are not patched |
 
 It also sets `realmlist` in `WTF\Config.wtf`. SkyFire's experimental Battle.net ("authnet")
 login is not included.

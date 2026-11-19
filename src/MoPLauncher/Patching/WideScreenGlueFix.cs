@@ -77,6 +77,16 @@ internal static class WideScreenGlueFix
     // which evens the gaps either side of its portraits (26 and 8 screen px
     // before, on a 2000x837 screenshot). Its arrow badge, anchored to that border,
     // moves with it and overlaps the selected portrait's frame a little.
+    //
+    // It also zooms the customization portraits back out. CharacterCreate.lua
+    // places each portrait's camera from MODEL_CAMERA_CONFIG, scaled by the
+    // model's GetWorldScale(), which seems to follow the screen's width: on a
+    // screen wider than 16:9 the camera ends up too close and the portraits
+    // are zoomed in until the hair clips. CharCreate_DisplayPreviewModels is
+    // wrapped so that, right after the glue sets a portrait's camera (when
+    // that portrait's race or gender changes, the same test the glue uses),
+    // the camera is moved away from its target by the screen's aspect ratio
+    // divided by 16:9. Later calls leave it alone, so it isn't applied twice.
     private const string MaskSnippet = """
         pcall(function()
           if not GlueParent or not CharacterCreate then return end
@@ -149,6 +159,37 @@ internal static class WideScreenGlueFix
                       border.arrow:SetPoint("RIGHT", border, "LEFT", 33 + 17, -4)
                     end
                   end
+                end
+              end)
+            end
+            if not MoPLauncherPreviewZoom and CharCreate_DisplayPreviewModels then
+              MoPLauncherPreviewZoom = true
+              pcall(function()
+                local w, h = GetScreenWidth(), GetScreenHeight()
+                local k = (w / h) / (16 / 9)
+                if k <= 1.01 then return end
+                local original = CharCreate_DisplayPreviewModels
+                CharCreate_DisplayPreviewModels = function(...)
+                  local race, gender = GetSelectedRace(), GetSelectedSex()
+                  local kept = {}
+                  for index, p in pairs(CharCreatePreviewFrame.previews) do
+                    kept[index] = p.race == race and p.gender == gender
+                  end
+                  original(...)
+                  pcall(function()
+                    local _, raceFileName = GetNameForRace()
+                    if IsViewingAlteredForm() then raceFileName = raceFileName .. "Alt" end
+                    local config = MODEL_CAMERA_CONFIG[gender][raceFileName]
+                    for index, p in pairs(CharCreatePreviewFrame.previews) do
+                      if not kept[index] and p.race == race and p.gender == gender then
+                        local m = p.model
+                        local s = m:GetWorldScale()
+                        local tx, ty, tz = config.tx * s, config.ty * s, config.tz * s
+                        local cx, cy, cz = m:GetCameraPosition()
+                        m:SetCameraPosition(tx + (cx - tx) * k, ty + (cy - ty) * k, tz + (cz - tz) * k)
+                      end
+                    end
+                  end)
                 end
               end)
             end
