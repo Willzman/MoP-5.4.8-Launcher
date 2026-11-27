@@ -148,7 +148,21 @@ public partial class MainWindow : Window
             PanelBody.Text = $"Your game folder is missing the add-ons and patches this server uses, or has older ones: {addOns}. " +
                              "Install puts them in the game folder; your own add-ons are not touched. " +
                              "To take them out again, use ··· → Remove server add-ons and patches.";
-            PlayButton.Content = "Install add-ons & patches";
+            // Two lines: the whole phrase doesn't fit the button at its size.
+            PlayButton.Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = "Install", HorizontalAlignment = HorizontalAlignment.Center, LineHeight = 22 },
+                    new TextBlock
+                    {
+                        Text = "add-ons & patches",
+                        FontSize = 10.5,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, -2, 0, 0)
+                    }
+                }
+            };
         }
         else
         {
