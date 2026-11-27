@@ -79,11 +79,40 @@ into **Update** for a new launcher); one click puts them in `Interface\AddOns` a
   to go in as a pair: as the leader of a group of 2, or on your own to be matched with one other
   Duo player. It only shows on realms that
   have solo queue turned on (`DungeonFinder.SoloQueue.Enable` on a SkyFire server).
+- **Bug Report**: a bug button on the edge of the minimap (drag it round the edge; **/bug** if
+  it's hidden) opens a **Report Bug** window: a category, a description, and where you are, your
+  target, class, spec and quests filled in for you. Submit takes a screenshot and sends the
+  report to the server, which answers with its number (BUG-12). See [Bug reports](#bug-reports).
+- **Error Catcher**: keeps a list of the Lua errors your UI hits (each error once, with how often),
+  for the realm's developers. `/errorcatcher` shows how many; `/errorcatcher clear` empties it.
 
 The launcher keeps a list of every file it installed in `MoPLauncher-installed.txt` in the game
 folder. **··· → Remove server add-ons and patches** deletes exactly those files (your own add-ons
 are not touched); Play then offers to install them again. MPQ patches the launcher may ship later
 work the same way.
+
+## Bug reports
+
+A report sent with the Bug Report add-on goes straight to the server (a SkyFire server with the
+bug report code), which keeps it with where you were. The launcher then sends what goes with it
+to the server's feedback API, so the realm's developers get the whole picture:
+
+- **The report's screenshot.** While the game runs, the launcher watches the `Screenshots` folder.
+  A new picture goes only if it was taken just before one of your account's reports (the server
+  says when they were saved). Every other screenshot stays on your PC.
+- **Crash logs**, after the game closes: new files in `Errors`. The `.txt` logs always; the
+  `.dmp` dumps (bigger, holding part of the game's memory) only with **Include crash dumps**
+  ticked in Settings. They stay on the server; only a short summary is made public.
+- **Add-on errors**, after the game closes: the Error Catcher's list
+  (`WTF\Account\<ACCOUNT>\SavedVariables\!ErrorCatcher.lua`), when it has changed.
+
+Uploads are tied to your account by a token the server gives the Bug Report add-on
+(`SavedVariables\BugReport.lua`); the launcher itself holds no password or key for them. They go
+over HTTPS to a server that must show the certificate the launcher knows, never anywhere else.
+Nothing from before you first ran a launcher with this feature is sent, and nothing is sent
+twice (`%AppData%\MoPLauncher\feedback.json` remembers what went). What a session left while
+the launcher was closed goes the next time it starts. Turn it all off with **Send my bug
+reports' screenshots, crash logs and add-on errors to the realm** in Settings.
 
 ## What it patches
 
@@ -110,6 +139,15 @@ server** in Settings.
 - **Ship it pointed at your server:** set `ServerAddress` (and optionally `RealmName`) in
   [`src/MoPLauncher/Config/ServerDefaults.cs`](src/MoPLauncher/Config/ServerDefaults.cs).
   New installs then only have to choose their game folder.
+- **Bug report uploads:** the launcher sends them to `https://<server host>:8443` and only if the
+  server's certificate has the SHA-256 in `FeedbackCertificate` in
+  [`src/MoPLauncher/Config/ServerDefaults.cs`](src/MoPLauncher/Config/ServerDefaults.cs) (printed by
+  `tools/feedback/make_cert.sh` in the SkyFire_548 repository; an empty value turns uploads off).
+  `FeedbackUrl` and `FeedbackCertificate` in a player's `config.json` override them. The server
+  side (the upload API and the GitHub worker) is in SkyFire_548's
+  [`tools/feedback`](https://github.com/Willzman/SkyFire_548/tree/Development/tools/feedback). To
+  check the uploads against a running API: `dotnet run --project tests/FeedbackSmoke -- <server>
+  <account> <token file> <crash .txt> <crash .dmp>` (see its `Program.cs`).
 - **Ship an add-on or patch:** put its files under
   [`src/MoPLauncher/ClientFiles`](src/MoPLauncher/ClientFiles) at the path they need in the game
   folder (for example `ClientFiles\Interface\AddOns\MyAddon\MyAddon.toc`, or a patch under
