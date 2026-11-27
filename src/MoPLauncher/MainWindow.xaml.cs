@@ -172,7 +172,7 @@ public partial class MainWindow : Window
         else if (_realmNews is not null)
         {
             PanelKicker.Text = "WHAT'S NEW";
-            PanelTitle.Text = "Realm news";
+            PanelTitle.Text = "Development Realm News";
             PanelBody.Text = NotesToText(_realmNews, string.Empty);
             var allNews = new Button
             {
