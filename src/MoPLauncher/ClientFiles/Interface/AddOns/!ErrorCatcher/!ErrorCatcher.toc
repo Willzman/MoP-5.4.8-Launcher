@@ -1,0 +1,7 @@
+## Interface: 50400
+## Title: Error Catcher
+## Notes: Keeps a list of the Lua errors the game's UI and add-ons hit, so the launcher can send them to the realm's developers. Installed by the launcher.
+## Author: MoP 5.4.8 Launcher
+## Version: 1.0.0
+## SavedVariables: ErrorCatcherDB
+ErrorCatcher.lua
