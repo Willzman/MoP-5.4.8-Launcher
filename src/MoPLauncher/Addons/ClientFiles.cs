@@ -25,13 +25,14 @@ public static class ClientFiles
         .ToList();
 
     // The add-ons the launcher ships (folder names under Interface\AddOns),
-    // for telling the player what Install puts in.
+    // for telling the player what Install puts in. A leading "!" (which only
+    // makes an add-on load first, like !ErrorCatcher) is left out.
     public static IReadOnlyList<string> AddOnNames { get; } = Shipped
         .Select(p => p.Split(Path.DirectorySeparatorChar))
         .Where(parts => parts.Length >= 4
                         && parts[0].Equals("Interface", StringComparison.OrdinalIgnoreCase)
                         && parts[1].Equals("AddOns", StringComparison.OrdinalIgnoreCase))
-        .Select(parts => parts[2])
+        .Select(parts => parts[2].TrimStart('!'))
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToList();
 
