@@ -3,6 +3,11 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.7.0
+
+- New add-on: **Bug Report**. A bug button on the edge of the minimap (drag it to move it; **/bug** opens it too) opens a Report Bug window: pick a category, say what went wrong and click Submit. Where you are, your target and your quests are filled in for you, a screenshot is taken, and you get a report number such as BUG-12. Click **Install add-ons & patches** to get it.
+- New add-on: **Error Catcher** keeps a list of the Lua errors your UI hits, for the realm's developers.
+
 ## 1.6.1
 
 - Solo Queue add-on: a new **Duo** checkbox, right of Find Group. Two players go in as a pair: the leader of a group of 2 ticks it, or two players tick it on their own and are matched with each other (and nobody else). Click **Install add-ons & patches** to get it.
