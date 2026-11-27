@@ -1,20 +1,19 @@
 -- Solo Queue: a "Solo" button next to the Dungeon Finder's "Find Group".
 --
--- The button asks the server (addon prefix SFSOLO, whispered to yourself) to
--- make your next dungeon finder join a solo one, waits for its "READY", then
--- presses the game's own Find Group button with the dungeon and roles you
--- picked. A solo queue starts at once with just you and is never matched with
--- other players. The server answers "PING" with ON or OFF; the button only
--- shows on realms that have solo queue turned on.
+-- Clicking it asks the server (addon prefix SFSOLO, whispered to yourself) to
+-- make your next dungeon finder join a solo one, then presses the game's own
+-- Find Group button in the same click, with the dungeon and roles you picked.
+-- Joining the dungeon finder is only allowed straight from a mouse click, so
+-- both happen in the click; the server handles the request before the join.
+-- A solo queue starts at once with just you and is never matched with other
+-- players. The server answers "PING" with ON or OFF; the button only shows on
+-- realms that have solo queue turned on.
 --
 -- Installed and removed by the MoP 5.4.8 Launcher.
 
 local PREFIX = "SFSOLO"
-local REPLY_TIMEOUT = 3
 
 local serverOn = false
-local pending = false
-local pendingSince = 0
 local button
 
 local function Print(text)
@@ -41,8 +40,7 @@ local function UpdateButton()
 
     button:Show()
     local findGroup = FindGroupButton()
-    local canQueue = findGroup and findGroup:IsEnabled() and not IsInGroup() and not pending
-    if canQueue then
+    if findGroup and findGroup:IsEnabled() and not IsInGroup() then
         button:Enable()
     else
         button:Disable()
@@ -70,10 +68,16 @@ local function CreateButton()
             Print("leave your group to queue solo.")
             return
         end
-        pending = true
-        pendingSince = GetTime()
-        UpdateButton()
+
+        local findGroup = FindGroupButton()
+        if not (findGroup and findGroup:IsEnabled()) then
+            Print("pick a dungeon and a role first.")
+            return
+        end
+
+        -- Same click: the request goes out first, then the game's own join.
         Send("QUEUE")
+        findGroup:Click()
     end)
 
     button:SetScript("OnEnter", function(self)
@@ -84,12 +88,13 @@ local function CreateButton()
     end)
     button:SetScript("OnLeave", GameTooltip_Hide)
 
+    local elapsedSinceUpdate = 0
     button:SetScript("OnUpdate", function(self, elapsed)
-        if pending and GetTime() - pendingSince > REPLY_TIMEOUT then
-            pending = false
-            Print("no reply from the server, so you were not queued.")
+        elapsedSinceUpdate = elapsedSinceUpdate + elapsed
+        if elapsedSinceUpdate >= 0.2 then
+            elapsedSinceUpdate = 0
+            UpdateButton()
         end
-        UpdateButton()
     end)
 
     return true
@@ -116,30 +121,17 @@ events:SetScript("OnEvent", function(self, event, ...)
             return
         end
 
-        if message == "ON" then
+        if message == "ON" or message == "READY" then
             serverOn = true
         elseif message == "OFF" then
+            -- Only after a click if the realm turned it off meanwhile: that
+            -- join went into the normal queue.
+            if serverOn then
+                Print("solo queue is turned off on this realm, so you joined the normal queue.")
+            end
             serverOn = false
-            if pending then
-                pending = false
-                Print("solo queue is turned off on this realm.")
-            end
         elseif message == "GROUP" then
-            pending = false
-            Print("leave your group to queue solo.")
-        elseif message == "READY" then
-            serverOn = true
-            if pending then
-                pending = false
-                local findGroup = FindGroupButton()
-                if findGroup and findGroup:IsEnabled() then
-                    findGroup:Click()
-                else
-                    -- Don't leave the request open for the next normal Find Group.
-                    Send("CANCEL")
-                    Print("pick a dungeon and a role first.")
-                end
-            end
+            Print("you're in a group, so you joined the normal queue.")
         end
         UpdateButton()
     end
