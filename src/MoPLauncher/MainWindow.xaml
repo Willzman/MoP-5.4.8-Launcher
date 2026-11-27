@@ -164,6 +164,8 @@
                         <StackPanel>
                             <Button x:Name="SkipUpdateRow" Style="{StaticResource MenuRow}"
                                     Content="Play without updating" Click="SkipUpdate_Click" Visibility="Collapsed"/>
+                            <Button x:Name="SkipClientFilesRow" Style="{StaticResource MenuRow}"
+                                    Content="Play without installing" Click="SkipClientFiles_Click" Visibility="Collapsed"/>
                             <Button Style="{StaticResource MenuRow}" Content="Settings" Click="OpenSettings_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Open game folder"
                                     Click="OpenGameFolder_Click"/>
@@ -227,10 +229,6 @@
                               Margin="0,10,0,0"/>
                     <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
                                Text="The login, character list and character creation screens fill the screen instead of staying 16:9 with black bars. Also turns on the launcher's character creation fixes; when off, the menus are left as the game ships them."/>
-                    <CheckBox x:Name="ClientFilesBox" Content="Install the server's add-ons and patches"
-                              Margin="0,10,0,0"/>
-                    <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
-                               Text="Before each launch, puts the server's add-ons (Solo Queue: a Solo checkbox in the Dungeon Finder) into the game folder. To take them out again, use Remove server add-ons and patches in the ··· menu."/>
 
                     <Grid Margin="0,2,0,0">
                         <Grid.ColumnDefinitions>

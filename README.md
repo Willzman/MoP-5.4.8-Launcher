@@ -57,8 +57,10 @@ Realm names are cleared when the server address changes.
 
 ## Server add-ons
 
-Before each launch the launcher puts the server's own add-ons into the game folder
-(`Interface\AddOns`), and updates them when a new launcher version changes them. Right now that is:
+The launcher checks that the server's own add-ons and patches are in the game folder and up to
+date. When one is missing or older, **Play** turns into **Install add-ons & patches** (as it turns
+into **Update** for a new launcher); one click puts them in `Interface\AddOns` and Play is back.
+**··· → Play without installing** skips it for that session. Right now the launcher ships:
 
 - **Solo Queue**: a **Solo** checkbox next to **Find Group** in the Dungeon Finder. Tick it and
   click Find Group to queue into the dungeon you picked by yourself: you go in at once, alone. It only shows on realms that
@@ -66,8 +68,8 @@ Before each launch the launcher puts the server's own add-ons into the game fold
 
 The launcher keeps a list of every file it installed in `MoPLauncher-installed.txt` in the game
 folder. **··· → Remove server add-ons and patches** deletes exactly those files (your own add-ons
-are not touched) and stops installing them; tick **Install the server's add-ons and patches** in
-Settings to have them back. MPQ patches the launcher may ship later work the same way.
+are not touched); Play then offers to install them again. MPQ patches the launcher may ship later
+work the same way.
 
 ## What it patches
 
@@ -97,9 +99,9 @@ server** in Settings.
 - **Ship an add-on or patch:** put its files under
   [`src/MoPLauncher/ClientFiles`](src/MoPLauncher/ClientFiles) at the path they need in the game
   folder (for example `ClientFiles\Interface\AddOns\MyAddon\MyAddon.toc`, or a patch under
-  `ClientFiles\Data\…`). They are embedded in the exe, installed before each launch, and removed by
-  **Remove server add-ons and patches**. A file dropped from `ClientFiles` is removed from players'
-  game folders on their next launch.
+  `ClientFiles\Data\…`). They are embedded in the exe; players whose game folder lacks them (or has
+  older ones) see **Install add-ons & patches** on the Play button, and **Remove server add-ons and
+  patches** takes them out. A file dropped from `ClientFiles` is removed on the player's next install.
 - **Release an update:** bump `<Version>` in
   [`src/MoPLauncher/MoPLauncher.csproj`](src/MoPLauncher/MoPLauncher.csproj), add a section for it
   to [`CHANGELOG.md`](CHANGELOG.md), and push to `main`. The workflow builds the launcher and

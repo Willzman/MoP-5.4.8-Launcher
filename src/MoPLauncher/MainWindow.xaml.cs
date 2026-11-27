@@ -29,6 +29,12 @@ public partial class MainWindow : Window
 
     private bool _busy;
 
+    // True when the game folder is missing the server's add-ons and patches
+    // (or has older ones): Play becomes Install. _skipClientFiles is "Play
+    // without installing", for this run of the launcher only.
+    private bool _clientFilesNeeded;
+    private bool _skipClientFiles;
+
     // Plays the login music found in the client. _musicFor is the game folder
     // the current track came from, so a folder change looks again.
     private readonly MediaPlayer _music = new();
@@ -103,6 +109,16 @@ public partial class MainWindow : Window
         SetupList.Children.Clear();
         SkipUpdateRow.Visibility = _update is not null && IsConfigured ? Visibility.Visible : Visibility.Collapsed;
 
+        try
+        {
+            _clientFilesNeeded = IsConfigured && !_skipClientFiles && ClientFiles.NeedsInstall(_config.ClientLocation);
+        }
+        catch (Exception)
+        {
+            _clientFilesNeeded = false;
+        }
+        SkipClientFilesRow.Visibility = _update is null && _clientFilesNeeded ? Visibility.Visible : Visibility.Collapsed;
+
         if (_update is not null)
         {
             PanelKicker.Text = "UPDATE AVAILABLE";
@@ -123,6 +139,16 @@ public partial class MainWindow : Window
             AddSetupStep("Enter the server address", hasAddress, current: hasFolder && !hasAddress);
             AddSetupStep("Press Play", false, current: false);
             PlayButton.Content = "Set up";
+        }
+        else if (_clientFilesNeeded)
+        {
+            var addOns = ClientFiles.AddOnNames.Count > 0 ? string.Join(", ", ClientFiles.AddOnNames) : "the server's files";
+            PanelKicker.Text = "ADD-ONS & PATCHES";
+            PanelTitle.Text = "The server's add-ons and patches";
+            PanelBody.Text = $"Your game folder is missing the add-ons and patches this server uses, or has older ones: {addOns}. " +
+                             "Install puts them in the game folder; your own add-ons are not touched. " +
+                             "To take them out again, use ··· → Remove server add-ons and patches.";
+            PlayButton.Content = "Install add-ons & patches";
         }
         else
         {
@@ -307,8 +333,39 @@ public partial class MainWindow : Window
             await InstallUpdateAsync(_update);
         else if (!IsConfigured)
             ShowSettings();
+        else if (_clientFilesNeeded)
+            await InstallClientFilesAsync();
         else
             await LaunchAsync();
+    }
+
+    private async Task InstallClientFilesAsync()
+    {
+        SetBusy(true);
+        SetStatus("Installing add-ons and patches");
+        var folder = _config.ClientLocation;
+        try
+        {
+            var changed = await Task.Run(() => ClientFiles.Install(folder));
+            SetStatus("Add-ons and patches installed", changed == 1 ? "1 file updated" : $"{changed} files updated", 1);
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Couldn't install the add-ons and patches", ex.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            Refresh();
+        }
+    }
+
+    private void SkipClientFiles_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        _skipClientFiles = true;
+        Refresh();
+        SetStatus("Ready", "the add-ons and patches will be offered again next time");
     }
 
     private async Task LaunchAsync()
@@ -331,7 +388,6 @@ public partial class MainWindow : Window
             var clearCache = _config.ClearCacheOnLaunch;
             var redirect = _config.RedirectAllConnections;
             var wideMenus = _config.WideMenus;
-            var installClientFiles = _config.InstallClientFiles;
             var account = _config.AccountName.Trim();
             var realm = _config.Realm.Trim();
             var password = _config.AutoLogin && account.Length > 0
@@ -344,19 +400,6 @@ public partial class MainWindow : Window
             {
                 if (clearCache)
                     ClearCache(folder);
-
-                // The server's add-ons and patches; a failure here shouldn't
-                // stop the game from starting.
-                if (installClientFiles)
-                {
-                    try
-                    {
-                        ClientFiles.Install(folder);
-                    }
-                    catch (Exception)
-                    {
-                    }
-                }
 
                 ConfigWtf.Set(folder, "realmlist", endpoint.Realmlist);
                 // Keeps the client off the Battle.net login path.
@@ -634,8 +677,8 @@ public partial class MainWindow : Window
 
         var answer = MessageBox.Show(this,
             "Remove the add-ons and patches the launcher installed in your game folder?\n\n" +
-            "They won't be installed again until you tick \"Install the server's add-ons and patches\" in Settings. " +
-            "Your own add-ons are not touched.",
+            "Your own add-ons are not touched. Play then offers to install them again; " +
+            "··· → Play without installing starts the game without them.",
             "Remove server add-ons and patches", MessageBoxButton.OKCancel, MessageBoxImage.Question);
         if (answer != MessageBoxResult.OK)
             return;
@@ -643,8 +686,7 @@ public partial class MainWindow : Window
         try
         {
             var removed = ClientFiles.Uninstall(_config.ClientLocation);
-            _config.InstallClientFiles = false;
-            _store.Save(_config);
+            Refresh();
             SetStatus("Server add-ons and patches removed",
                 removed == 1 ? "1 file removed" : $"{removed} files removed");
         }
@@ -710,7 +752,6 @@ public partial class MainWindow : Window
         ClearCacheBox.IsChecked = _config.ClearCacheOnLaunch;
         RedirectBox.IsChecked = _config.RedirectAllConnections;
         WideMenusBox.IsChecked = _config.WideMenus;
-        ClientFilesBox.IsChecked = _config.InstallClientFiles;
         AccountBox.Text = _config.AccountName;
         AutoLoginBox.IsChecked = _config.AutoLogin;
         // The saved password is never put back in the box; blank keeps it.
@@ -747,7 +788,6 @@ public partial class MainWindow : Window
             ClearCacheOnLaunch = ClearCacheBox.IsChecked == true,
             RedirectAllConnections = RedirectBox.IsChecked == true,
             WideMenus = WideMenusBox.IsChecked == true,
-            InstallClientFiles = ClientFilesBox.IsChecked == true,
             AccountName = AccountBox.Text.Trim(),
             AutoLogin = AutoLoginBox.IsChecked == true,
             MusicEnabled = _config.MusicEnabled,

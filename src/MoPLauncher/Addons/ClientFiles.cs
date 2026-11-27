@@ -24,6 +24,39 @@ public static class ClientFiles
         .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
         .ToList();
 
+    // The add-ons the launcher ships (folder names under Interface\AddOns),
+    // for telling the player what Install puts in.
+    public static IReadOnlyList<string> AddOnNames { get; } = Shipped
+        .Select(p => p.Split(Path.DirectorySeparatorChar))
+        .Where(parts => parts.Length >= 4
+                        && parts[0].Equals("Interface", StringComparison.OrdinalIgnoreCase)
+                        && parts[1].Equals("AddOns", StringComparison.OrdinalIgnoreCase))
+        .Select(parts => parts[2])
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+    // True when a shipped file is missing or different in the game folder, or
+    // a file an older launcher installed is still there and no longer shipped.
+    public static bool NeedsInstall(string clientLocation)
+    {
+        if (string.IsNullOrWhiteSpace(clientLocation) || !Directory.Exists(clientLocation))
+            return false;
+
+        foreach (var relative in Shipped)
+        {
+            var target = Resolve(clientLocation, relative);
+            if (!File.Exists(target))
+                return true;
+
+            var bytes = ReadResource(relative);
+            if (new FileInfo(target).Length != bytes.Length || !File.ReadAllBytes(target).AsSpan().SequenceEqual(bytes))
+                return true;
+        }
+
+        return ReadManifest(clientLocation)
+            .Any(p => !Shipped.Contains(p, StringComparer.OrdinalIgnoreCase) && File.Exists(Resolve(clientLocation, p)));
+    }
+
     // Writes every shipped file that is missing or different, and removes
     // files an older launcher installed that this one no longer ships.
     // Returns how many files were written or removed.

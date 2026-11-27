@@ -29,11 +29,6 @@ public class LauncherConfig
     // client leaves at the sides. Off by default while it is being tried.
     public bool WideMenus { get; set; }
 
-    // Puts the server's add-ons (Solo Queue) and patches the launcher ships
-    // into the game folder before each launch. "Remove server add-ons and
-    // patches" deletes them and turns this off.
-    public bool InstallClientFiles { get; set; } = true;
-
     // Plays the client's own login screen music while the launcher is open.
     public bool MusicEnabled { get; set; } = true;
 
