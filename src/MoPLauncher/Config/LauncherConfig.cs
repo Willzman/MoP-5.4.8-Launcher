@@ -40,6 +40,22 @@ public class LauncherConfig
     // 0 to 1.
     public double MusicVolume { get; set; } = 0.1;
 
+    // Sends the realm's developers the screenshot of each bug report sent
+    // with the Bug Report add-on, new crash logs and the Error Catcher's Lua
+    // errors (see Feedback\FeedbackService). Other screenshots never leave
+    // the PC.
+    public bool FeedbackUploads { get; set; } = true;
+
+    // Also sends crash dumps (.dmp): bigger, and they hold part of the game's
+    // memory. Off unless the player turns it on.
+    public bool FeedbackUploadDumps { get; set; }
+
+    // Where the feedback upload API is and its certificate's SHA-256. Empty
+    // means the login server's host on port 8443 and ServerDefaults'
+    // certificate. Not in Settings; set them in config.json.
+    public string FeedbackUrl { get; set; } = string.Empty;
+    public string FeedbackCertificate { get; set; } = string.Empty;
+
     // The account to play as: filled in on the game's login screen when set.
     public string AccountName { get; set; } = string.Empty;
 
@@ -158,6 +174,8 @@ public class ConfigStore
         config.Realms = (config.Realms ?? []).Where(r => !string.IsNullOrWhiteSpace(r)).ToList();
         config.AccountName ??= string.Empty;
         config.Realm ??= string.Empty;
+        config.FeedbackUrl ??= string.Empty;
+        config.FeedbackCertificate ??= string.Empty;
 
         // 1.3.0 had one account, with its password at the top level.
         if (config.RememberAccount(config.AccountName) is { } current && !string.IsNullOrEmpty(config.ProtectedPassword))
