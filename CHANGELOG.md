@@ -3,6 +3,12 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.8.0
+
+- When you send a bug report with the in-game bug button, the launcher sends its screenshot to the realm's developers. Your other screenshots never leave your PC.
+- After the game closes, new crash logs and the add-on errors the game hit are sent too, so crashes and broken add-ons get fixed without you having to report them. Crash dumps (.dmp) only if you tick **Include crash dumps** in Settings.
+- Settings has a new box to turn all of this off.
+
 ## 1.7.0
 
 - New add-on: **Bug Report**. A bug button on the edge of the minimap (drag it to move it; **/bug** opens it too) opens a Report Bug window: pick a category, say what went wrong and click Submit. Where you are, your target and your quests are filled in for you, a screenshot is taken, and you get a report number such as BUG-12. Click **Install add-ons & patches** to get it.
