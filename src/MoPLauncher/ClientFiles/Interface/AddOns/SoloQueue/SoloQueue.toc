@@ -1,6 +1,6 @@
 ## Interface: 50400
 ## Title: Solo Queue
-## Notes: Adds a Solo checkbox to the Dungeon Finder: tick it and click Find Group to queue into a dungeon by yourself. Installed by the launcher.
+## Notes: Adds Solo and Duo checkboxes to the Dungeon Finder: tick one and click Find Group to go in by yourself or as a pair. Installed by the launcher.
 ## Author: MoP 5.4.8 Launcher
-## Version: 1.0.0
+## Version: 1.1.0
 SoloQueue.lua

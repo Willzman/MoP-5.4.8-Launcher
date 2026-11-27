@@ -1,14 +1,19 @@
--- Solo Queue: a "Solo" checkbox next to the Dungeon Finder's "Find Group".
+-- Solo Queue: "Solo" and "Duo" checkboxes next to the Dungeon Finder's
+-- "Find Group".
 --
--- With it ticked, clicking Find Group asks the server (addon prefix SFSOLO,
--- whispered to yourself) to make that join a solo one, just before the game's
--- own Find Group code runs. The addon never joins the queue itself: the client
--- only lets its own code do that, and blocks it from an addon ("Interface
--- action failed because of an AddOn"). The server handles the request before
--- the join, so the queue goes in alone: it starts at once with just you and is
--- never matched with other players.
+--   Solo: not in a group. You go in by yourself, at once.
+--   Duo:  two players go in as a pair. Either the leader of a group of 2 ticks
+--         it, or two players each tick it on their own and are matched with
+--         each other (and nobody else).
 --
--- The server answers "PING" with ON or OFF; the checkbox only shows on realms
+-- With one of them ticked, clicking Find Group asks the server (addon prefix
+-- SFSOLO, whispered to yourself) to make that join a Solo or Duo one, just
+-- before the game's own Find Group code runs. The addon never joins the queue
+-- itself: the client only lets its own code do that, and blocks it from an
+-- addon ("Interface action failed because of an AddOn"). The server handles
+-- the request before the join.
+--
+-- The server answers "PING" with ON or OFF; the checkboxes only show on realms
 -- that have solo queue turned on.
 --
 -- Installed and removed by the MoP 5.4.8 Launcher.
@@ -16,7 +21,7 @@
 local PREFIX = "SFSOLO"
 
 local serverOn = false
-local checkbox
+local solo, duo
 
 local function Print(text)
     DEFAULT_CHAT_FRAME:AddMessage("|cff33ccffSolo Queue:|r " .. text)
@@ -30,28 +35,70 @@ local function FindGroupButton()
     return _G["LFDQueueFrameFindGroupButton"]
 end
 
-local function UpdateCheckbox()
-    if not checkbox then
+-- Solo: only when not in a group. Duo: not in a group, or leader of a group of 2.
+local function CanSolo()
+    return not IsInGroup()
+end
+
+local function CanDuo()
+    if not IsInGroup() then
+        return true
+    end
+    return GetNumGroupMembers() == 2 and UnitIsGroupLeader("player")
+end
+
+local function SetUsable(box, usable)
+    if usable then
+        box:Enable()
+        _G[box:GetName() .. "Text"]:SetTextColor(1, 0.82, 0)
+    else
+        box:SetChecked(false)
+        box:Disable()
+        _G[box:GetName() .. "Text"]:SetTextColor(0.5, 0.5, 0.5)
+    end
+end
+
+local function Update()
+    if not solo then
         return
     end
 
     if not serverOn then
-        checkbox:Hide()
+        solo:Hide()
+        duo:Hide()
         return
     end
 
-    checkbox:Show()
-    if IsInGroup() then
-        checkbox:Disable()
-        _G[checkbox:GetName() .. "Text"]:SetTextColor(0.5, 0.5, 0.5)
+    solo:Show()
+    duo:Show()
+    SetUsable(solo, CanSolo())
+    SetUsable(duo, CanDuo())
+end
+
+local function MakeBox(name, label, tooltip, findGroup, side)
+    local box = CreateFrame("CheckButton", name, findGroup:GetParent(), "UICheckButtonTemplate")
+    box:SetSize(24, 24)
+    -- Solo left of Find Group (room for its label before the button), Duo right of it.
+    if side == "LEFT" then
+        box:SetPoint("RIGHT", findGroup, "LEFT", -38, 0)
     else
-        checkbox:Enable()
-        _G[checkbox:GetName() .. "Text"]:SetTextColor(1, 0.82, 0)
+        box:SetPoint("LEFT", findGroup, "RIGHT", 4, 0)
     end
+    _G[name .. "Text"]:SetText(label)
+    box:Hide()
+
+    box:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(label)
+        GameTooltip:AddLine(tooltip, 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    box:SetScript("OnLeave", GameTooltip_Hide)
+    return box
 end
 
 local function Create()
-    if checkbox then
+    if solo then
         return true
     end
 
@@ -60,37 +107,38 @@ local function Create()
         return false
     end
 
-    checkbox = CreateFrame("CheckButton", "SoloQueueCheckbox", findGroup:GetParent(), "UICheckButtonTemplate")
-    checkbox:SetSize(24, 24)
-    checkbox:SetPoint("RIGHT", findGroup, "LEFT", -38, 0)
-    _G[checkbox:GetName() .. "Text"]:SetText("Solo")
-    checkbox:Hide()
+    duo = MakeBox("SoloQueueDuoCheckbox", "Duo",
+        "Tick this, then click Find Group to go in as a pair. In a group of 2, the leader ticks it and you go in together at once. On your own, you're matched with one other Duo player, and nobody else.",
+        findGroup, "RIGHT")
+    solo = MakeBox("SoloQueueCheckbox", "Solo",
+        "Tick this, then click Find Group to queue for the selected dungeon by yourself. You go in at once, alone; nobody else is added to your group.",
+        findGroup, "LEFT")
 
-    checkbox:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Solo")
-        GameTooltip:AddLine("Tick this, then click Find Group to queue for the selected dungeon by yourself. You go in at once, alone; nobody else is added to your group.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    checkbox:SetScript("OnLeave", GameTooltip_Hide)
+    -- Only one of them at a time.
+    solo:HookScript("OnClick", function(self) if self:GetChecked() then duo:SetChecked(false) end end)
+    duo:HookScript("OnClick", function(self) if self:GetChecked() then solo:SetChecked(false) end end)
 
     -- Runs just before the game's own Find Group click, in the same click.
     -- Only sends an addon message, so the game's join stays its own.
     findGroup:HookScript("PreClick", function()
-        if serverOn and checkbox:GetChecked() and not IsInGroup() then
+        if not serverOn then
+            return
+        end
+        if solo:GetChecked() and CanSolo() then
             Send("QUEUE")
+        elseif duo:GetChecked() and CanDuo() then
+            Send("DUO")
         end
     end)
 
     local elapsedSinceUpdate = 0
-    checkbox:SetScript("OnUpdate", function(self, elapsed)
+    solo:SetScript("OnUpdate", function(self, elapsed)
         elapsedSinceUpdate = elapsedSinceUpdate + elapsed
         if elapsedSinceUpdate >= 0.2 then
             elapsedSinceUpdate = 0
-            UpdateCheckbox()
+            Update()
         end
     end)
-
     return true
 end
 
@@ -98,15 +146,16 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("CHAT_MSG_ADDON")
+events:RegisterEvent("GROUP_ROSTER_UPDATE")
 events:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
         RegisterAddonMessagePrefix(PREFIX)
         if not Create() then
-            Print("couldn't find the Dungeon Finder's Find Group button; the Solo checkbox is not available.")
+            Print("couldn't find the Dungeon Finder's Find Group button; the Solo and Duo checkboxes are not available.")
         end
         Send("PING")
     elseif event == "ADDON_LOADED" then
-        if not checkbox then
+        if not solo then
             Create()
         end
     elseif event == "CHAT_MSG_ADDON" then
@@ -124,7 +173,9 @@ events:SetScript("OnEvent", function(self, event, ...)
             serverOn = false
         elseif message == "GROUP" then
             Print("you're in a group, so you joined the normal queue.")
+        elseif message == "DUOGROUP" then
+            Print("Duo needs a group of exactly 2 with you as leader, so you joined the normal queue.")
         end
-        UpdateCheckbox()
     end
+    Update()
 end)
