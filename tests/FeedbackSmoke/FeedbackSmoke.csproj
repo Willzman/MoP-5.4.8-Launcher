@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Runs the launcher's feedback uploads against a real feedback API with a
+       pretend game folder. Needs the server, a test upload token and one bug
+       report saved for that account just before; see Program.cs. Not run by CI. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>FeedbackSmoke</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\src\MoPLauncher\Feedback\*.cs" LinkBase="Feedback" />
+    <Compile Include="..\..\src\MoPLauncher\Config\LauncherConfig.cs" Link="Config\LauncherConfig.cs" />
+    <Compile Include="..\..\src\MoPLauncher\Config\ServerDefaults.cs" Link="Config\ServerDefaults.cs" />
+    <Compile Include="..\..\src\MoPLauncher\Config\ServerEndpoint.cs" Link="Config\ServerEndpoint.cs" />
+    <Compile Include="..\..\src\MoPLauncher\Patching\ConfigWtf.cs" Link="Patching\ConfigWtf.cs" />
+  </ItemGroup>
+
+</Project>
