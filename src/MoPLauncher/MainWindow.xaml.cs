@@ -24,8 +24,12 @@ public partial class MainWindow : Window
     // Set while a newer release is waiting: Play becomes Update.
     private ReleaseInfo? _update;
 
-    // Notes of the release this launcher is, shown when there's nothing to do.
+    // Notes of the release this launcher is, shown when there's nothing to do
+    // and the realm news can't be read.
     private string? _currentNotes;
+
+    // The newest entries of the realm news (Markdown), or null until read.
+    private string? _realmNews;
 
     private bool _busy;
 
@@ -76,6 +80,7 @@ public partial class MainWindow : Window
         {
             UpdateService.CleanUpAfterUpdate();
             _ = UpdateMusicAsync(announce: false);
+            _ = LoadRealmNewsAsync();
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -163,6 +168,21 @@ public partial class MainWindow : Window
                     }
                 }
             };
+        }
+        else if (_realmNews is not null)
+        {
+            PanelKicker.Text = "WHAT'S NEW";
+            PanelTitle.Text = "Realm news";
+            PanelBody.Text = NotesToText(_realmNews, string.Empty);
+            var allNews = new Button
+            {
+                Style = (Style)FindResource("LinkButton"),
+                Content = "All realm news",
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            allNews.Click += (_, _) => OpenWithShell(NewsPageUrl);
+            SetupList.Children.Add(allNews);
+            PlayButton.Content = "Play";
         }
         else
         {
@@ -561,6 +581,31 @@ public partial class MainWindow : Window
         {
             // Not being able to remember the choice shouldn't matter here.
         }
+    }
+
+    // ---- Realm news --------------------------------------------------------
+
+    private string NewsUrl => string.IsNullOrWhiteSpace(_config.NewsUrl) ? RealmNews.DefaultUrl : _config.NewsUrl.Trim();
+
+    // The page to open for the whole file: GitHub's page for the default
+    // file, otherwise the configured address itself.
+    private string NewsPageUrl => string.IsNullOrWhiteSpace(_config.NewsUrl) ? RealmNews.DefaultPageUrl : _config.NewsUrl.Trim();
+
+    private async Task LoadRealmNewsAsync()
+    {
+        try
+        {
+            var text = await RealmNews.GetAsync(NewsUrl);
+            _realmNews = text is null ? null : RealmNews.Newest(text);
+        }
+        catch (Exception)
+        {
+            // Offline is fine: the panel keeps the launcher's own notes.
+            _realmNews = null;
+        }
+
+        if (!_busy && SettingsOverlay.Visibility != Visibility.Visible)
+            Refresh();
     }
 
     // ---- Updates -----------------------------------------------------------

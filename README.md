@@ -8,7 +8,7 @@ No game files are changed, and the patches are gone when the game closes.
   <img src="docs/launcher.jpg" width="820" alt="Preview of the launcher window">
 </p>
 
-**[Download MoPLauncher.exe](https://github.com/Willzman/MoP-5.4.8-Launcher-/releases/latest/download/MoPLauncher.exe)**
+**[Download MoPLauncher.exe](https://github.com/Willzman/MoP-5.4.8-Launcher/releases/latest/download/MoPLauncher.exe)**
 
 ## Playing
 
@@ -24,6 +24,18 @@ Click **More info**, then **Run anyway**.
 The launcher checks this repository's releases when it starts. When a newer version exists,
 **Play** turns into **Update**: it downloads the new `MoPLauncher.exe`, checks its SHA-256,
 replaces itself and restarts. Nothing has to be reinstalled.
+
+## Realm news
+
+The **What's new** panel shows the server's latest changes: the newest entries of
+[`REALM_NEWS.md`](https://github.com/Willzman/SkyFire_548/blob/Development/REALM_NEWS.md) on the
+server repository's `Development` branch, with a link to the whole file. While an update is
+waiting, the panel shows what the update brings instead, and when the news can't be read
+(offline, say) it shows the launcher's own notes.
+
+To read news from somewhere else (another branch or realm), set `NewsUrl` in
+`%AppData%\MoPLauncher\config.json` to the raw address of a file in the same format
+(`## YYYY-MM-DD` headings with `- ` lines under them, newest first).
 
 ## Music
 

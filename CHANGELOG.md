@@ -5,6 +5,8 @@ launcher shows in its "What's new" panel.
 
 ## 1.6.0
 
+- The **What's new** panel now shows the realm's latest changes, with a link to all of them. What a launcher update brings still shows while the update is waiting.
+- Updates come from the launcher's renamed GitHub repository (MoP-5.4.8-Launcher).
 - The launcher now checks that the server's add-ons are in your game folder. When one is missing or out of date, **Play** turns into **Install add-ons & patches**; one click installs them. The first one is **Solo Queue**: a **Solo** checkbox next to **Find Group** in the Dungeon Finder. Tick it and click Find Group to go into the dungeon you picked by yourself, right away. It only shows on realms that have solo queue turned on.
 - New in the ··· menu: **Remove server add-ons and patches** deletes everything the launcher installed in the game folder (your own add-ons are left alone), and **Play without installing** starts the game without them for that session.
 
