@@ -10,6 +10,7 @@ using System.Windows.Media;
 using Microsoft.Win32;
 using MoPLauncher.Addons;
 using MoPLauncher.Config;
+using MoPLauncher.Feedback;
 using MoPLauncher.Music;
 using MoPLauncher.Patching;
 using MoPLauncher.Update;
@@ -49,6 +50,9 @@ public partial class MainWindow : Window
     // first events don't overwrite them.
     private bool _ready;
 
+    // Sends bug report screenshots, crash logs and Lua errors to the realm.
+    private readonly FeedbackService _feedback = new();
+
     public MainWindow()
     {
         InitializeComponent();
@@ -76,11 +80,20 @@ public partial class MainWindow : Window
         // player comes back to the launcher.
         Activated += (_, _) => RefreshLastPlayed();
 
+        // Says what feedback went out, without taking over a busy status.
+        _feedback.Sent += what => Dispatcher.BeginInvoke(() =>
+        {
+            if (!_busy && StatusTitle.Text is "Ready" or "Game started")
+                StatusDetail.Text = $"sent {what} to the realm's developers";
+        });
+
         Loaded += async (_, _) =>
         {
             UpdateService.CleanUpAfterUpdate();
             _ = UpdateMusicAsync(announce: false);
             _ = LoadRealmNewsAsync();
+            // Whatever the last session left while the launcher was closed.
+            _ = _feedback.RunAsync(_config, sessionOver: true);
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -452,6 +465,9 @@ public partial class MainWindow : Window
             // The game has its own music from here on.
             _music.Pause();
 
+            // Bug report screenshots while it runs; crash logs and Lua errors after.
+            _feedback.WatchSession(_config, processId);
+
             if (password is not null)
             {
                 SetStatus("Game started", $"logging in as {account} when the login screen is up", 1);
@@ -813,6 +829,8 @@ public partial class MainWindow : Window
         WideMenusBox.IsChecked = _config.WideMenus;
         AccountBox.Text = _config.AccountName;
         AutoLoginBox.IsChecked = _config.AutoLogin;
+        FeedbackBox.IsChecked = _config.FeedbackUploads;
+        FeedbackDumpsBox.IsChecked = _config.FeedbackUploadDumps;
         // The saved password is never put back in the box; blank keeps it.
         AccountPasswordBox.Clear();
         SettingsError.Visibility = Visibility.Collapsed;
@@ -851,6 +869,10 @@ public partial class MainWindow : Window
             AutoLogin = AutoLoginBox.IsChecked == true,
             MusicEnabled = _config.MusicEnabled,
             MusicVolume = _config.MusicVolume,
+            FeedbackUploads = FeedbackBox.IsChecked == true,
+            FeedbackUploadDumps = FeedbackDumpsBox.IsChecked == true,
+            FeedbackUrl = _config.FeedbackUrl,
+            FeedbackCertificate = _config.FeedbackCertificate,
             // Copies, so a cancelled or refused save changes nothing.
             Accounts = _config.Accounts
                 .Select(a => new SavedAccount { Name = a.Name, ProtectedPassword = a.ProtectedPassword }).ToList(),

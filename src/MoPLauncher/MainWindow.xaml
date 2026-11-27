@@ -252,6 +252,15 @@
                     <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
                                Text="Passwords are saved encrypted for your Windows account on this PC. Leave the box empty to keep the one already saved for an account. To add another account, type its name and password and save; choose between them under Play."/>
 
+                    <CheckBox x:Name="FeedbackBox" Content="Send my bug reports' screenshots, crash logs and add-on errors to the realm"
+                              Margin="0,16,0,0"/>
+                    <TextBlock Style="{StaticResource Hint}" Margin="24,3,0,0"
+                               Text="After a bug report from the game's bug button, its screenshot goes to the realm's developers; your other screenshots never leave this PC. When the game closes, new crash logs and the add-on errors the game hit go too. Crash logs keep your Windows and computer names on the server; they are not made public."/>
+                    <CheckBox x:Name="FeedbackDumpsBox" Content="Include crash dumps (.dmp)"
+                              Margin="24,8,0,0" IsEnabled="{Binding IsChecked, ElementName=FeedbackBox}"/>
+                    <TextBlock Style="{StaticResource Hint}" Margin="48,3,0,0"
+                               Text="Bigger files, holding part of the game's memory when it crashed. They help find crashes; they stay on the realm's server."/>
+
                     <TextBlock x:Name="SettingsError" Foreground="{StaticResource ErrorBrush}" TextWrapping="Wrap"
                                Margin="0,16,0,0" Visibility="Collapsed"/>
 
