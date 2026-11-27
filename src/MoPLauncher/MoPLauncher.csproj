@@ -14,7 +14,7 @@
     <!-- The one place the launcher's version lives. Bump it (and add a
          CHANGELOG.md entry) and push to main: the workflow publishes a
          release, and every installed launcher offers the update. -->
-    <Version>1.5.4</Version>
+    <Version>1.6.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Copyright>GPL-3.0. Patches based on the Project SkyFire launcher.</Copyright>
 
@@ -34,6 +34,12 @@
     <Resource Include="Assets\icon.ico" />
     <Resource Include="Fonts\*.ttf" />
     <Resource Include="Fonts\*.otf" />
+  </ItemGroup>
+
+  <!-- Files the launcher puts in the game folder (the server's add-ons and
+       patches), embedded under their game-folder path. See Addons\ClientFiles.cs. -->
+  <ItemGroup>
+    <EmbeddedResource Include="ClientFiles\**\*" LogicalName="clientfiles/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- StormLib, for reading the login music out of the client's archives.

@@ -8,7 +8,7 @@ No game files are changed, and the patches are gone when the game closes.
   <img src="docs/launcher.jpg" width="820" alt="Preview of the launcher window">
 </p>
 
-**[Download MoPLauncher.exe](https://github.com/Willzman/MoP-5.4.8-Launcher-/releases/latest/download/MoPLauncher.exe)**
+**[Download MoPLauncher.exe](https://github.com/Willzman/MoP-5.4.8-Launcher/releases/latest/download/MoPLauncher.exe)**
 
 ## Playing
 
@@ -24,6 +24,18 @@ Click **More info**, then **Run anyway**.
 The launcher checks this repository's releases when it starts. When a newer version exists,
 **Play** turns into **Update**: it downloads the new `MoPLauncher.exe`, checks its SHA-256,
 replaces itself and restarts. Nothing has to be reinstalled.
+
+## Realm news
+
+The **What's new** panel shows the server's latest changes: the newest entries of
+[`REALM_NEWS.md`](https://github.com/Willzman/SkyFire_548/blob/Development/REALM_NEWS.md) on the
+server repository's `Development` branch, with a link to the whole file. While an update is
+waiting, the panel shows what the update brings instead, and when the news can't be read
+(offline, say) it shows the launcher's own notes.
+
+To read news from somewhere else (another branch or realm), set `NewsUrl` in
+`%AppData%\MoPLauncher\config.json` to the raw address of a file in the same format
+(`## YYYY-MM-DD` headings with `- ` lines under them, newest first).
 
 ## Music
 
@@ -55,6 +67,22 @@ realm is written to `realmName` in `WTF\Config.wtf`, which the game enters after
 an account, type its name and password in Settings and save; **Forget this account** removes one.
 Realm names are cleared when the server address changes.
 
+## Server add-ons
+
+The launcher checks that the server's own add-ons and patches are in the game folder and up to
+date. When one is missing or older, **Play** turns into **Install add-ons & patches** (as it turns
+into **Update** for a new launcher); one click puts them in `Interface\AddOns` and Play is back.
+**··· → Play without installing** skips it for that session. Right now the launcher ships:
+
+- **Solo Queue**: a **Solo** checkbox next to **Find Group** in the Dungeon Finder. Tick it and
+  click Find Group to queue into the dungeon you picked by yourself: you go in at once, alone. It only shows on realms that
+  have solo queue turned on (`DungeonFinder.SoloQueue.Enable` on a SkyFire server).
+
+The launcher keeps a list of every file it installed in `MoPLauncher-installed.txt` in the game
+folder. **··· → Remove server add-ons and patches** deletes exactly those files (your own add-ons
+are not touched); Play then offers to install them again. MPQ patches the launcher may ship later
+work the same way.
+
 ## What it patches
 
 The patch set is the classic-login one from the
@@ -80,6 +108,12 @@ server** in Settings.
 - **Ship it pointed at your server:** set `ServerAddress` (and optionally `RealmName`) in
   [`src/MoPLauncher/Config/ServerDefaults.cs`](src/MoPLauncher/Config/ServerDefaults.cs).
   New installs then only have to choose their game folder.
+- **Ship an add-on or patch:** put its files under
+  [`src/MoPLauncher/ClientFiles`](src/MoPLauncher/ClientFiles) at the path they need in the game
+  folder (for example `ClientFiles\Interface\AddOns\MyAddon\MyAddon.toc`, or a patch under
+  `ClientFiles\Data\…`). They are embedded in the exe; players whose game folder lacks them (or has
+  older ones) see **Install add-ons & patches** on the Play button, and **Remove server add-ons and
+  patches** takes them out. A file dropped from `ClientFiles` is removed on the player's next install.
 - **Release an update:** bump `<Version>` in
   [`src/MoPLauncher/MoPLauncher.csproj`](src/MoPLauncher/MoPLauncher.csproj), add a section for it
   to [`CHANGELOG.md`](CHANGELOG.md), and push to `main`. The workflow builds the launcher and

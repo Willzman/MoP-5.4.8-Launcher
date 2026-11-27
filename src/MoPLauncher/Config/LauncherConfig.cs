@@ -29,6 +29,11 @@ public class LauncherConfig
     // client leaves at the sides. Off by default while it is being tried.
     public bool WideMenus { get; set; }
 
+    // Where the "What's new" panel reads the realm news from. Empty means the
+    // server repository's REALM_NEWS.md on Development. Not in Settings; set
+    // it in config.json to follow another branch or realm.
+    public string NewsUrl { get; set; } = string.Empty;
+
     // Plays the client's own login screen music while the launcher is open.
     public bool MusicEnabled { get; set; } = true;
 

@@ -21,7 +21,7 @@ public sealed record ReleaseInfo(
 // SHA-256, swaps the two and restarts. Nothing needs reinstalling.
 public static class UpdateService
 {
-    public const string Repository = "Willzman/MoP-5.4.8-Launcher-";
+    public const string Repository = "Willzman/MoP-5.4.8-Launcher";
     public const string RepositoryUrl = "https://github.com/" + Repository;
     private const string AssetName = "MoPLauncher.exe";
     private const string ChecksumAssetName = AssetName + ".sha256";

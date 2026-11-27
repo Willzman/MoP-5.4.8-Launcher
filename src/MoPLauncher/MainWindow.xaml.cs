@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Win32;
+using MoPLauncher.Addons;
 using MoPLauncher.Config;
 using MoPLauncher.Music;
 using MoPLauncher.Patching;
@@ -23,10 +24,20 @@ public partial class MainWindow : Window
     // Set while a newer release is waiting: Play becomes Update.
     private ReleaseInfo? _update;
 
-    // Notes of the release this launcher is, shown when there's nothing to do.
+    // Notes of the release this launcher is, shown when there's nothing to do
+    // and the realm news can't be read.
     private string? _currentNotes;
 
+    // The newest entries of the realm news (Markdown), or null until read.
+    private string? _realmNews;
+
     private bool _busy;
+
+    // True when the game folder is missing the server's add-ons and patches
+    // (or has older ones): Play becomes Install. _skipClientFiles is "Play
+    // without installing", for this run of the launcher only.
+    private bool _clientFilesNeeded;
+    private bool _skipClientFiles;
 
     // Plays the login music found in the client. _musicFor is the game folder
     // the current track came from, so a folder change looks again.
@@ -69,6 +80,7 @@ public partial class MainWindow : Window
         {
             UpdateService.CleanUpAfterUpdate();
             _ = UpdateMusicAsync(announce: false);
+            _ = LoadRealmNewsAsync();
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -102,6 +114,16 @@ public partial class MainWindow : Window
         SetupList.Children.Clear();
         SkipUpdateRow.Visibility = _update is not null && IsConfigured ? Visibility.Visible : Visibility.Collapsed;
 
+        try
+        {
+            _clientFilesNeeded = IsConfigured && !_skipClientFiles && ClientFiles.NeedsInstall(_config.ClientLocation);
+        }
+        catch (Exception)
+        {
+            _clientFilesNeeded = false;
+        }
+        SkipClientFilesRow.Visibility = _update is null && _clientFilesNeeded ? Visibility.Visible : Visibility.Collapsed;
+
         if (_update is not null)
         {
             PanelKicker.Text = "UPDATE AVAILABLE";
@@ -122,6 +144,45 @@ public partial class MainWindow : Window
             AddSetupStep("Enter the server address", hasAddress, current: hasFolder && !hasAddress);
             AddSetupStep("Press Play", false, current: false);
             PlayButton.Content = "Set up";
+        }
+        else if (_clientFilesNeeded)
+        {
+            var addOns = ClientFiles.AddOnNames.Count > 0 ? string.Join(", ", ClientFiles.AddOnNames) : "the server's files";
+            PanelKicker.Text = "ADD-ONS & PATCHES";
+            PanelTitle.Text = "The server's add-ons and patches";
+            PanelBody.Text = $"Your game folder is missing the add-ons and patches this server uses, or has older ones: {addOns}. " +
+                             "Install puts them in the game folder; your own add-ons are not touched. " +
+                             "To take them out again, use ··· → Remove server add-ons and patches.";
+            // Two lines: the whole phrase doesn't fit the button at its size.
+            PlayButton.Content = new StackPanel
+            {
+                Children =
+                {
+                    new TextBlock { Text = "Install", HorizontalAlignment = HorizontalAlignment.Center, LineHeight = 22 },
+                    new TextBlock
+                    {
+                        Text = "add-ons & patches",
+                        FontSize = 10.5,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        Margin = new Thickness(0, -2, 0, 0)
+                    }
+                }
+            };
+        }
+        else if (_realmNews is not null)
+        {
+            PanelKicker.Text = "WHAT'S NEW";
+            PanelTitle.Text = "Development Realm News";
+            PanelBody.Text = NotesToText(_realmNews, string.Empty);
+            var allNews = new Button
+            {
+                Style = (Style)FindResource("LinkButton"),
+                Content = "All realm news",
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            allNews.Click += (_, _) => OpenWithShell(NewsPageUrl);
+            SetupList.Children.Add(allNews);
+            PlayButton.Content = "Play";
         }
         else
         {
@@ -306,8 +367,39 @@ public partial class MainWindow : Window
             await InstallUpdateAsync(_update);
         else if (!IsConfigured)
             ShowSettings();
+        else if (_clientFilesNeeded)
+            await InstallClientFilesAsync();
         else
             await LaunchAsync();
+    }
+
+    private async Task InstallClientFilesAsync()
+    {
+        SetBusy(true);
+        SetStatus("Installing add-ons and patches");
+        var folder = _config.ClientLocation;
+        try
+        {
+            var changed = await Task.Run(() => ClientFiles.Install(folder));
+            SetStatus("Add-ons and patches installed", changed == 1 ? "1 file updated" : $"{changed} files updated", 1);
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Couldn't install the add-ons and patches", ex.Message);
+        }
+        finally
+        {
+            SetBusy(false);
+            Refresh();
+        }
+    }
+
+    private void SkipClientFiles_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        _skipClientFiles = true;
+        Refresh();
+        SetStatus("Ready", "the add-ons and patches will be offered again next time");
     }
 
     private async Task LaunchAsync()
@@ -491,6 +583,31 @@ public partial class MainWindow : Window
         }
     }
 
+    // ---- Realm news --------------------------------------------------------
+
+    private string NewsUrl => string.IsNullOrWhiteSpace(_config.NewsUrl) ? RealmNews.DefaultUrl : _config.NewsUrl.Trim();
+
+    // The page to open for the whole file: GitHub's page for the default
+    // file, otherwise the configured address itself.
+    private string NewsPageUrl => string.IsNullOrWhiteSpace(_config.NewsUrl) ? RealmNews.DefaultPageUrl : _config.NewsUrl.Trim();
+
+    private async Task LoadRealmNewsAsync()
+    {
+        try
+        {
+            var text = await RealmNews.GetAsync(NewsUrl);
+            _realmNews = text is null ? null : RealmNews.Newest(text);
+        }
+        catch (Exception)
+        {
+            // Offline is fine: the panel keeps the launcher's own notes.
+            _realmNews = null;
+        }
+
+        if (!_busy && SettingsOverlay.Visibility != Visibility.Visible)
+            Refresh();
+    }
+
     // ---- Updates -----------------------------------------------------------
 
     private async Task CheckForUpdatesAsync(bool announce)
@@ -606,6 +723,36 @@ public partial class MainWindow : Window
         }
 
         OpenWithShell(path);
+    }
+
+    private void RemoveClientFiles_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        if (!Directory.Exists(_config.ClientLocation))
+        {
+            SetStatus("No game folder yet", "choose it in Settings");
+            return;
+        }
+
+        var answer = MessageBox.Show(this,
+            "Remove the add-ons and patches the launcher installed in your game folder?\n\n" +
+            "Your own add-ons are not touched. Play then offers to install them again; " +
+            "··· → Play without installing starts the game without them.",
+            "Remove server add-ons and patches", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK)
+            return;
+
+        try
+        {
+            var removed = ClientFiles.Uninstall(_config.ClientLocation);
+            Refresh();
+            SetStatus("Server add-ons and patches removed",
+                removed == 1 ? "1 file removed" : $"{removed} files removed");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Couldn't remove them", ex.Message);
+        }
     }
 
     private void ClearCache_Click(object sender, RoutedEventArgs e)

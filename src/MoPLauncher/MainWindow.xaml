@@ -164,6 +164,8 @@
                         <StackPanel>
                             <Button x:Name="SkipUpdateRow" Style="{StaticResource MenuRow}"
                                     Content="Play without updating" Click="SkipUpdate_Click" Visibility="Collapsed"/>
+                            <Button x:Name="SkipClientFilesRow" Style="{StaticResource MenuRow}"
+                                    Content="Play without installing" Click="SkipClientFiles_Click" Visibility="Collapsed"/>
                             <Button Style="{StaticResource MenuRow}" Content="Settings" Click="OpenSettings_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Open game folder"
                                     Click="OpenGameFolder_Click"/>
@@ -171,6 +173,8 @@
                                     Click="OpenAddOnsFolder_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Clear game cache"
                                     Click="ClearCache_Click"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Remove server add-ons and patches"
+                                    Click="RemoveClientFiles_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Launcher on GitHub"
                                     Click="OpenGitHub_Click"/>
                         </StackPanel>
