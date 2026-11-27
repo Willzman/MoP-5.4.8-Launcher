@@ -5,7 +5,7 @@ launcher shows in its "What's new" panel.
 
 ## 1.6.0
 
-- The launcher now installs the server's add-ons into your game folder before each launch. The first one is **Solo Queue**: a **Solo** button next to **Find Group** in the Dungeon Finder that puts you into the dungeon you picked by yourself, right away. It only shows on realms that have solo queue turned on.
+- The launcher now installs the server's add-ons into your game folder before each launch. The first one is **Solo Queue**: a **Solo** checkbox next to **Find Group** in the Dungeon Finder. Tick it and click Find Group to go into the dungeon you picked by yourself, right away. It only shows on realms that have solo queue turned on.
 - New in the ··· menu: **Remove server add-ons and patches** deletes everything the launcher installed in the game folder (your own add-ons are left alone) and stops installing it. Turn it back on with the new **Install the server's add-ons and patches** setting.
 
 ## 1.5.4

@@ -60,8 +60,8 @@ Realm names are cleared when the server address changes.
 Before each launch the launcher puts the server's own add-ons into the game folder
 (`Interface\AddOns`), and updates them when a new launcher version changes them. Right now that is:
 
-- **Solo Queue**: a **Solo** button next to **Find Group** in the Dungeon Finder. It queues you
-  into the dungeon you picked by yourself: you go in at once, alone. It only shows on realms that
+- **Solo Queue**: a **Solo** checkbox next to **Find Group** in the Dungeon Finder. Tick it and
+  click Find Group to queue into the dungeon you picked by yourself: you go in at once, alone. It only shows on realms that
   have solo queue turned on (`DungeonFinder.SoloQueue.Enable` on a SkyFire server).
 
 The launcher keeps a list of every file it installed in `MoPLauncher-installed.txt` in the game
