@@ -1,0 +1,8 @@
+## Interface: 50400
+## Title: Bug Report
+## Notes: A bug button on the minimap (or /bug) to send the realm a bug report, with where you are, your target and your quests filled in for you. Installed by the launcher.
+## Author: MoP 5.4.8 Launcher
+## Version: 1.0.0
+## SavedVariables: BugReportDB
+## SavedVariablesPerCharacter: BugReportCharDB
+BugReport.lua
