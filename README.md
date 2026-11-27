@@ -55,6 +55,20 @@ realm is written to `realmName` in `WTF\Config.wtf`, which the game enters after
 an account, type its name and password in Settings and save; **Forget this account** removes one.
 Realm names are cleared when the server address changes.
 
+## Server add-ons
+
+Before each launch the launcher puts the server's own add-ons into the game folder
+(`Interface\AddOns`), and updates them when a new launcher version changes them. Right now that is:
+
+- **Solo Queue**: a **Solo** button next to **Find Group** in the Dungeon Finder. It queues you
+  into the dungeon you picked by yourself: you go in at once, alone. It only shows on realms that
+  have solo queue turned on (`DungeonFinder.SoloQueue.Enable` on a SkyFire server).
+
+The launcher keeps a list of every file it installed in `MoPLauncher-installed.txt` in the game
+folder. **··· → Remove server add-ons and patches** deletes exactly those files (your own add-ons
+are not touched) and stops installing them; tick **Install the server's add-ons and patches** in
+Settings to have them back. MPQ patches the launcher may ship later work the same way.
+
 ## What it patches
 
 The patch set is the classic-login one from the
@@ -80,6 +94,12 @@ server** in Settings.
 - **Ship it pointed at your server:** set `ServerAddress` (and optionally `RealmName`) in
   [`src/MoPLauncher/Config/ServerDefaults.cs`](src/MoPLauncher/Config/ServerDefaults.cs).
   New installs then only have to choose their game folder.
+- **Ship an add-on or patch:** put its files under
+  [`src/MoPLauncher/ClientFiles`](src/MoPLauncher/ClientFiles) at the path they need in the game
+  folder (for example `ClientFiles\Interface\AddOns\MyAddon\MyAddon.toc`, or a patch under
+  `ClientFiles\Data\…`). They are embedded in the exe, installed before each launch, and removed by
+  **Remove server add-ons and patches**. A file dropped from `ClientFiles` is removed from players'
+  game folders on their next launch.
 - **Release an update:** bump `<Version>` in
   [`src/MoPLauncher/MoPLauncher.csproj`](src/MoPLauncher/MoPLauncher.csproj), add a section for it
   to [`CHANGELOG.md`](CHANGELOG.md), and push to `main`. The workflow builds the launcher and

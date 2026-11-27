@@ -8,6 +8,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using Microsoft.Win32;
+using MoPLauncher.Addons;
 using MoPLauncher.Config;
 using MoPLauncher.Music;
 using MoPLauncher.Patching;
@@ -330,6 +331,7 @@ public partial class MainWindow : Window
             var clearCache = _config.ClearCacheOnLaunch;
             var redirect = _config.RedirectAllConnections;
             var wideMenus = _config.WideMenus;
+            var installClientFiles = _config.InstallClientFiles;
             var account = _config.AccountName.Trim();
             var realm = _config.Realm.Trim();
             var password = _config.AutoLogin && account.Length > 0
@@ -342,6 +344,19 @@ public partial class MainWindow : Window
             {
                 if (clearCache)
                     ClearCache(folder);
+
+                // The server's add-ons and patches; a failure here shouldn't
+                // stop the game from starting.
+                if (installClientFiles)
+                {
+                    try
+                    {
+                        ClientFiles.Install(folder);
+                    }
+                    catch (Exception)
+                    {
+                    }
+                }
 
                 ConfigWtf.Set(folder, "realmlist", endpoint.Realmlist);
                 // Keeps the client off the Battle.net login path.
@@ -608,6 +623,37 @@ public partial class MainWindow : Window
         OpenWithShell(path);
     }
 
+    private void RemoveClientFiles_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        if (!Directory.Exists(_config.ClientLocation))
+        {
+            SetStatus("No game folder yet", "choose it in Settings");
+            return;
+        }
+
+        var answer = MessageBox.Show(this,
+            "Remove the add-ons and patches the launcher installed in your game folder?\n\n" +
+            "They won't be installed again until you tick \"Install the server's add-ons and patches\" in Settings. " +
+            "Your own add-ons are not touched.",
+            "Remove server add-ons and patches", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK)
+            return;
+
+        try
+        {
+            var removed = ClientFiles.Uninstall(_config.ClientLocation);
+            _config.InstallClientFiles = false;
+            _store.Save(_config);
+            SetStatus("Server add-ons and patches removed",
+                removed == 1 ? "1 file removed" : $"{removed} files removed");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Couldn't remove them", ex.Message);
+        }
+    }
+
     private void ClearCache_Click(object sender, RoutedEventArgs e)
     {
         MorePopup.IsOpen = false;
@@ -664,6 +710,7 @@ public partial class MainWindow : Window
         ClearCacheBox.IsChecked = _config.ClearCacheOnLaunch;
         RedirectBox.IsChecked = _config.RedirectAllConnections;
         WideMenusBox.IsChecked = _config.WideMenus;
+        ClientFilesBox.IsChecked = _config.InstallClientFiles;
         AccountBox.Text = _config.AccountName;
         AutoLoginBox.IsChecked = _config.AutoLogin;
         // The saved password is never put back in the box; blank keeps it.
@@ -700,6 +747,7 @@ public partial class MainWindow : Window
             ClearCacheOnLaunch = ClearCacheBox.IsChecked == true,
             RedirectAllConnections = RedirectBox.IsChecked == true,
             WideMenus = WideMenusBox.IsChecked == true,
+            InstallClientFiles = ClientFilesBox.IsChecked == true,
             AccountName = AccountBox.Text.Trim(),
             AutoLogin = AutoLoginBox.IsChecked == true,
             MusicEnabled = _config.MusicEnabled,

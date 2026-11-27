@@ -1,0 +1,6 @@
+## Interface: 50400
+## Title: Solo Queue
+## Notes: Adds a Solo button to the Dungeon Finder: queue into a dungeon by yourself. Installed by the launcher.
+## Author: MoP 5.4.8 Launcher
+## Version: 1.0.0
+SoloQueue.lua
