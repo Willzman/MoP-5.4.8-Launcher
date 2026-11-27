@@ -74,8 +74,10 @@ date. When one is missing or older, **Play** turns into **Install add-ons & patc
 into **Update** for a new launcher); one click puts them in `Interface\AddOns` and Play is back.
 **··· → Play without installing** skips it for that session. Right now the launcher ships:
 
-- **Solo Queue**: a **Solo** checkbox next to **Find Group** in the Dungeon Finder. Tick it and
-  click Find Group to queue into the dungeon you picked by yourself: you go in at once, alone. It only shows on realms that
+- **Solo Queue**: **Solo** and **Duo** checkboxes next to **Find Group** in the Dungeon Finder.
+  Tick Solo and click Find Group to go into the dungeon you picked by yourself, at once. Tick Duo
+  to go in as a pair: as the leader of a group of 2, or on your own to be matched with one other
+  Duo player. It only shows on realms that
   have solo queue turned on (`DungeonFinder.SoloQueue.Enable` on a SkyFire server).
 
 The launcher keeps a list of every file it installed in `MoPLauncher-installed.txt` in the game

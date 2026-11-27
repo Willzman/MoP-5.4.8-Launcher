@@ -3,6 +3,10 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.6.1
+
+- Solo Queue add-on: a new **Duo** checkbox, right of Find Group. Two players go in as a pair: the leader of a group of 2 ticks it, or two players tick it on their own and are matched with each other (and nobody else). Click **Install add-ons & patches** to get it.
+
 ## 1.6.0
 
 - The **What's new** panel now shows the realm's latest changes, with a link to all of them. What a launcher update brings still shows while the update is waiting.
