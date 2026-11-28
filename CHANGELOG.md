@@ -3,6 +3,13 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.8.1
+
+- A bug report's screenshot is sent while you play again: the launcher also looks every minute, in case it missed the picture being taken.
+- Started the game without the launcher? Its bug report screenshots, crash logs and add-on errors go when you come back to the launcher window.
+- New **Clear screenshots** next to **Open AddOns folder** (and in the ··· menu): moves the game's screenshots to the Recycle Bin, after asking. Screenshots still waiting to go with a bug report are kept.
+- What the bug report uploads did is written to `feedback.log` next to the launcher's settings, to help find problems.
+
 ## 1.8.0
 
 - When you send a bug report with the in-game bug button, the launcher sends its screenshot to the realm's developers. Your other screenshots never leave your PC.

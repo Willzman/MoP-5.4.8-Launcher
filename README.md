@@ -114,6 +114,14 @@ twice (`%AppData%\MoPLauncher\feedback.json` remembers what went). What a sessio
 the launcher was closed goes the next time it starts. Turn it all off with **Send my bug
 reports' screenshots, crash logs and add-on errors to the realm** in Settings.
 
+While the game runs, the launcher also looks for a report's screenshot every minute, in case it
+missed the picture being taken; and when you come back to its window it sends what a game started
+without it left. Each step is written to `%AppData%\MoPLauncher\feedback.log` (never the token).
+
+**Clear screenshots** (next to **Open AddOns folder**, and in the ··· menu) moves the game's
+screenshots to the Recycle Bin after asking, but not while the game runs, and not the ones
+still waiting to go with a bug report.
+
 ## What it patches
 
 The patch set is the classic-login one from the
