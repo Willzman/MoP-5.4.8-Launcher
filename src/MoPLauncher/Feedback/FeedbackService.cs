@@ -415,7 +415,35 @@ public sealed partial class FeedbackService
         return sent;
     }
 
-    // Sends each account's Error Catcher list when it changed since last time.
+    [GeneratedRegex(@"^\t\t(\[.*\]) = \{\s*$")]
+    private static partial Regex LuaErrorKey();
+
+    [GeneratedRegex(@"^\t\t\t\[""count""\] = (\d+),")]
+    private static partial Regex LuaErrorCount();
+
+    // "<error key> <count>" for each error in an Error Catcher file, as the
+    // game writes it (the errors two tabs in, their fields three).
+    private static List<string> LuaErrorCounts(string text)
+    {
+        var counts = new List<string>();
+        string? key = null;
+        foreach (var line in text.Split('\n'))
+        {
+            var keyMatch = LuaErrorKey().Match(line.TrimEnd('\r'));
+            if (keyMatch.Success)
+            {
+                key = keyMatch.Groups[1].Value;
+                continue;
+            }
+            var countMatch = LuaErrorCount().Match(line);
+            if (countMatch.Success && key is not null)
+                counts.Add($"{key} {countMatch.Groups[1].Value}");
+        }
+        return counts;
+    }
+
+    // Sends each account's Error Catcher list when an error is new or its
+    // count went up since last time.
     private async Task<bool> SendLuaErrorsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens, string trigger)
     {
         var sentAny = false;
@@ -436,12 +464,18 @@ public sealed partial class FeedbackService
                 continue;
             }
 
-            var hash = Convert.ToHexString(SHA256.HashData(bytes));
+            // What's new is judged by the errors and their counts only: the
+            // add-on bumps its session number at every login, and the game
+            // may save the keys in another order, which would make every
+            // session look new.
+            var counts = LuaErrorCounts(System.Text.Encoding.Latin1.GetString(bytes));
+            var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+                string.Join("\n", counts.OrderBy(c => c, StringComparer.Ordinal)))));
             if (_state.LuaErrorsSent.TryGetValue(account, out var last) && last == hash)
                 continue;
 
-            // Every kept error has a count; no count, no errors to send.
-            if (!System.Text.Encoding.Latin1.GetString(bytes).Contains("[\"count\"]"))
+            // No errors kept, nothing to send.
+            if (counts.Count == 0)
             {
                 _state.LuaErrorsSent[account] = hash;
                 continue;

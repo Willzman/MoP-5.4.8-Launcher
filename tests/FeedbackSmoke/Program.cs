@@ -103,6 +103,18 @@ try
     await service.RunAsync(config, sessionOver: true, "smoke");
     Check(sent.Count == 0, "second run sends nothing");
 
+    // The add-on bumps its session number at every login: not a new error.
+    var luaFile = Path.Combine(saved, "!ErrorCatcher.lua");
+    File.WriteAllText(luaFile, File.ReadAllText(luaFile).Replace("ErrorCatcherDB = {\n", "ErrorCatcherDB = {\n\t[\"session\"] = 9,\n"));
+    await service.RunAsync(config, sessionOver: true, "smoke");
+    Check(sent.Count == 0, "Lua errors: a new session number alone sends nothing");
+
+    // The same error again: its count goes up, and that is sent.
+    File.WriteAllText(luaFile, File.ReadAllText(luaFile).Replace("[\"count\"] = 2,", "[\"count\"] = 3,"));
+    await service.RunAsync(config, sessionOver: true, "smoke");
+    Check(sent.Count == 1 && sent[0] == "the add-on errors", "Lua errors: a higher count is sent");
+    sent.Clear();
+
     // A session: a screenshot taken while "the game" runs goes out through the
     // watcher; the session's end is when the process exits.
     using var game = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Start-Sleep 80") { CreateNoWindow = true })!;
