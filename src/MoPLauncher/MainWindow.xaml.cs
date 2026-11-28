@@ -78,7 +78,12 @@ public partial class MainWindow : Window
 
         // The game saves its settings when it closes; pick that up when the
         // player comes back to the launcher.
-        Activated += (_, _) => RefreshLastPlayed();
+        Activated += (_, _) =>
+        {
+            RefreshLastPlayed();
+            // And send what a game started without the launcher left.
+            _feedback.WindowActivated(_config);
+        };
 
         // Says what feedback went out, without taking over a busy status.
         _feedback.Sent += what => Dispatcher.BeginInvoke(() =>
@@ -93,7 +98,7 @@ public partial class MainWindow : Window
             _ = UpdateMusicAsync(announce: false);
             _ = LoadRealmNewsAsync();
             // Whatever the last session left while the launcher was closed.
-            _ = _feedback.RunAsync(_config, sessionOver: true);
+            _ = _feedback.RunAsync(_config, sessionOver: !FeedbackService.IsGameRunning(), "launcher start");
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -768,6 +773,56 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             SetStatus("Couldn't remove them", ex.Message);
+        }
+    }
+
+    // Moves the game's screenshots to the Recycle Bin, after asking. Not while
+    // the game runs, and not the ones still waiting to go with a bug report.
+    private void ClearScreenshots_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        var folder = Path.Combine(_config.ClientLocation, "Screenshots");
+        if (!Directory.Exists(_config.ClientLocation))
+        {
+            SetStatus("No game folder yet", "choose it in Settings");
+            return;
+        }
+        if (FeedbackService.IsGameRunning())
+        {
+            SetStatus("The game is running", "close it first, then clear the screenshots");
+            return;
+        }
+
+        string[] extensions = [".jpg", ".jpeg", ".png", ".tga"];
+        var waiting = _feedback.WaitingScreenshots(_config).Select(f => f.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var files = Directory.Exists(folder)
+            ? new DirectoryInfo(folder).EnumerateFiles()
+                .Where(f => extensions.Contains(f.Extension, StringComparer.OrdinalIgnoreCase) && !waiting.Contains(f.FullName))
+                .ToList()
+            : [];
+        if (files.Count == 0)
+        {
+            SetStatus("No screenshots to clear", waiting.Count > 0 ? "only ones waiting to go with a bug report" : string.Empty);
+            return;
+        }
+
+        var megabytes = files.Sum(f => f.Length) / (1024.0 * 1024.0);
+        var answer = MessageBox.Show(this,
+            $"Move {files.Count} screenshot{(files.Count == 1 ? string.Empty : "s")} ({megabytes:0.#} MB) from the game's Screenshots folder to the Recycle Bin?\n\n" +
+            "You can get them back from the Recycle Bin until it's emptied." +
+            (waiting.Count > 0 ? $" {waiting.Count} still waiting to go with a bug report {(waiting.Count == 1 ? "is" : "are")} kept." : string.Empty),
+            "Clear screenshots", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK)
+            return;
+
+        try
+        {
+            RecycleBin.Send(files.Select(f => f.FullName));
+            SetStatus("Screenshots cleared", $"{files.Count} moved to the Recycle Bin");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Couldn't clear the screenshots", ex.Message);
         }
     }
 
