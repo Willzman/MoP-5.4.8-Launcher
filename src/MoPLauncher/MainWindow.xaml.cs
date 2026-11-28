@@ -53,6 +53,12 @@ public partial class MainWindow : Window
     // Sends bug report screenshots, crash logs and Lua errors to the realm.
     private readonly FeedbackService _feedback = new();
 
+    // The game this launcher is watching, like Steam does: Play says
+    // "Running" while it runs, then "Stopped" for a few seconds once it closes.
+    private int? _gameProcessId;
+    private DateTime _gameStartedAt;
+    private bool _gameJustStopped;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -81,14 +87,14 @@ public partial class MainWindow : Window
         Activated += (_, _) =>
         {
             RefreshLastPlayed();
-            // And send what a game started without the launcher left.
+            // And send what a session the launcher wasn't watching left.
             _feedback.WindowActivated(_config);
         };
 
         // Says what feedback went out, without taking over a busy status.
         _feedback.Sent += what => Dispatcher.BeginInvoke(() =>
         {
-            if (!_busy && StatusTitle.Text is "Ready" or "Game started")
+            if (!_busy && StatusTitle.Text is "Ready" or "Game started" or "Game closed")
                 StatusDetail.Text = $"sent {what} to the realm's developers";
         });
 
@@ -97,8 +103,16 @@ public partial class MainWindow : Window
             UpdateService.CleanUpAfterUpdate();
             _ = UpdateMusicAsync(announce: false);
             _ = LoadRealmNewsAsync();
+            // A game already running (the launcher was closed and opened
+            // again): show it as running and watch it as if it had started it.
+            if (FeedbackService.FindRunningGame() is { } runningGame)
+            {
+                SetStatus("Game started", "it was already running when the launcher opened", 1);
+                _feedback.WatchSession(_config, runningGame);
+                _ = WatchGameAsync(runningGame, DateTime.Now);
+            }
             // Whatever the last session left while the launcher was closed.
-            _ = _feedback.RunAsync(_config, sessionOver: !FeedbackService.IsGameRunning(), "launcher start");
+            _ = _feedback.RunAsync(_config, sessionOver: _gameProcessId is null, "launcher start");
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -212,9 +226,18 @@ public partial class MainWindow : Window
             PlayButton.Content = "Play";
         }
 
-        PlayButton.IsEnabled = !_busy;
+        // The game's state wins over all of the above while it lasts.
+        if (_gameProcessId is not null)
+            PlayButton.Content = "Running";
+        else if (_gameJustStopped)
+            PlayButton.Content = "Stopped";
+
+        PlayButton.IsEnabled = CanPress;
         RefreshLastPlayed();
     }
+
+    // Nothing to press while something runs, or while the game is open.
+    private bool CanPress => !_busy && _gameProcessId is null;
 
     // "Last played: ACCOUNT - REALM" under Play. What was last played comes
     // from what the game itself remembers in Config.wtf, so it is also right
@@ -371,14 +394,14 @@ public partial class MainWindow : Window
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        PlayButton.IsEnabled = !busy;
+        PlayButton.IsEnabled = CanPress;
     }
 
     // ---- Play / Update -----------------------------------------------------
 
     private async void PlayButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_busy)
+        if (!CanPress)
             return;
 
         if (_update is not null)
@@ -472,6 +495,7 @@ public partial class MainWindow : Window
 
             // Bug report screenshots while it runs; crash logs and Lua errors after.
             _feedback.WatchSession(_config, processId);
+            _ = WatchGameAsync(processId, DateTime.Now);
 
             if (password is not null)
             {
@@ -499,6 +523,41 @@ public partial class MainWindow : Window
             Refresh();
         }
     }
+
+    // Play says "Running" until the game closes, then "Stopped" for a few
+    // seconds, and the status line says how long it ran.
+    private async Task WatchGameAsync(int processId, DateTime startedAt)
+    {
+        _gameProcessId = processId;
+        _gameStartedAt = startedAt;
+        _gameJustStopped = false;
+        Refresh();
+
+        while (FeedbackService.IsRunning(processId))
+            await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // Another session may have taken over meanwhile.
+        if (_gameProcessId != processId)
+            return;
+
+        _gameProcessId = null;
+        _gameJustStopped = true;
+        if (!_busy)
+            SetStatus("Game closed", $"played for {Duration(DateTime.Now - _gameStartedAt)}");
+        Refresh();
+
+        await Task.Delay(TimeSpan.FromSeconds(4));
+        if (_gameJustStopped && _gameProcessId is null)
+        {
+            _gameJustStopped = false;
+            Refresh();
+        }
+    }
+
+    private static string Duration(TimeSpan time) =>
+        time.TotalMinutes < 1 ? "under a minute"
+        : time.TotalHours < 1 ? $"{(int)time.TotalMinutes} min"
+        : $"{(int)time.TotalHours} h {time.Minutes} min";
 
     // Runs alongside the game; the launcher stays usable meanwhile.
     private async Task AutoLoginAsync(int processId, string account, string password, int loginPort)

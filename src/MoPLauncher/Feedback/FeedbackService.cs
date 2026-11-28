@@ -176,7 +176,7 @@ public sealed partial class FeedbackService
     }
 
     // True while the process is there. One we may not look into still counts.
-    private static bool IsRunning(int processId)
+    public static bool IsRunning(int processId)
     {
         try
         {
@@ -193,7 +193,22 @@ public sealed partial class FeedbackService
         }
     }
 
-    // True while any copy of the game runs, one started without the launcher too.
+    // The process id of a running copy of the game, or null.
+    public static int? FindRunningGame()
+    {
+        foreach (var name in new[] { "Wow-64", "Wow" })
+        {
+            var found = Process.GetProcessesByName(name);
+            var id = found.Length > 0 ? found[0].Id : (int?)null;
+            foreach (var process in found)
+                process.Dispose();
+            if (id is not null)
+                return id;
+        }
+        return null;
+    }
+
+    // True while any copy of the game runs, one this launcher didn't start too.
     public static bool IsGameRunning()
     {
         foreach (var name in new[] { "Wow-64", "Wow" })
@@ -209,7 +224,7 @@ public sealed partial class FeedbackService
 
     // When the launcher's window comes back to the front: a pass, at most
     // every 30 s. With no game running it's a full one (crash logs and Lua
-    // errors too), which covers a game started without the launcher.
+    // errors too), which covers a session the launcher wasn't open for.
     public void WindowActivated(LauncherConfig config)
     {
         if (DateTime.UtcNow - _lastWindowPass < TimeSpan.FromSeconds(30))
