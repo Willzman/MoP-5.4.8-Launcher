@@ -19,6 +19,7 @@
     <Compile Include="..\..\src\MoPLauncher\Config\ServerDefaults.cs" Link="Config\ServerDefaults.cs" />
     <Compile Include="..\..\src\MoPLauncher\Config\ServerEndpoint.cs" Link="Config\ServerEndpoint.cs" />
     <Compile Include="..\..\src\MoPLauncher\Patching\ConfigWtf.cs" Link="Patching\ConfigWtf.cs" />
+    <Compile Include="..\..\src\MoPLauncher\RecycleBin.cs" Link="RecycleBin.cs" />
   </ItemGroup>
 
 </Project>
