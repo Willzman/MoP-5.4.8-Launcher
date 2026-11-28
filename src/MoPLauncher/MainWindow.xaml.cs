@@ -53,6 +53,12 @@ public partial class MainWindow : Window
     // Sends bug report screenshots, crash logs and Lua errors to the realm.
     private readonly FeedbackService _feedback = new();
 
+    // The game this launcher is watching, like Steam does: Play says
+    // "Running" while it runs, then "Stopped" for a few seconds once it closes.
+    private int? _gameProcessId;
+    private DateTime _gameStartedAt;
+    private bool _gameJustStopped;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -78,12 +84,17 @@ public partial class MainWindow : Window
 
         // The game saves its settings when it closes; pick that up when the
         // player comes back to the launcher.
-        Activated += (_, _) => RefreshLastPlayed();
+        Activated += (_, _) =>
+        {
+            RefreshLastPlayed();
+            // And send what a session the launcher wasn't watching left.
+            _feedback.WindowActivated(_config);
+        };
 
         // Says what feedback went out, without taking over a busy status.
         _feedback.Sent += what => Dispatcher.BeginInvoke(() =>
         {
-            if (!_busy && StatusTitle.Text is "Ready" or "Game started")
+            if (!_busy && StatusTitle.Text is "Ready" or "Game started" or "Game closed")
                 StatusDetail.Text = $"sent {what} to the realm's developers";
         });
 
@@ -92,8 +103,16 @@ public partial class MainWindow : Window
             UpdateService.CleanUpAfterUpdate();
             _ = UpdateMusicAsync(announce: false);
             _ = LoadRealmNewsAsync();
+            // A game already running (the launcher was closed and opened
+            // again): show it as running and watch it as if it had started it.
+            if (FeedbackService.FindRunningGame() is { } runningGame)
+            {
+                SetStatus("Game started", "it was already running when the launcher opened", 1);
+                _feedback.WatchSession(_config, runningGame);
+                _ = WatchGameAsync(runningGame, DateTime.Now);
+            }
             // Whatever the last session left while the launcher was closed.
-            _ = _feedback.RunAsync(_config, sessionOver: true);
+            _ = _feedback.RunAsync(_config, sessionOver: _gameProcessId is null, "launcher start");
             await CheckForUpdatesAsync(announce: false);
         };
     }
@@ -207,9 +226,18 @@ public partial class MainWindow : Window
             PlayButton.Content = "Play";
         }
 
-        PlayButton.IsEnabled = !_busy;
+        // The game's state wins over all of the above while it lasts.
+        if (_gameProcessId is not null)
+            PlayButton.Content = "Running";
+        else if (_gameJustStopped)
+            PlayButton.Content = "Stopped";
+
+        PlayButton.IsEnabled = CanPress;
         RefreshLastPlayed();
     }
+
+    // Nothing to press while something runs, or while the game is open.
+    private bool CanPress => !_busy && _gameProcessId is null;
 
     // "Last played: ACCOUNT - REALM" under Play. What was last played comes
     // from what the game itself remembers in Config.wtf, so it is also right
@@ -366,14 +394,14 @@ public partial class MainWindow : Window
     private void SetBusy(bool busy)
     {
         _busy = busy;
-        PlayButton.IsEnabled = !busy;
+        PlayButton.IsEnabled = CanPress;
     }
 
     // ---- Play / Update -----------------------------------------------------
 
     private async void PlayButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_busy)
+        if (!CanPress)
             return;
 
         if (_update is not null)
@@ -467,6 +495,7 @@ public partial class MainWindow : Window
 
             // Bug report screenshots while it runs; crash logs and Lua errors after.
             _feedback.WatchSession(_config, processId);
+            _ = WatchGameAsync(processId, DateTime.Now);
 
             if (password is not null)
             {
@@ -494,6 +523,41 @@ public partial class MainWindow : Window
             Refresh();
         }
     }
+
+    // Play says "Running" until the game closes, then "Stopped" for a few
+    // seconds, and the status line says how long it ran.
+    private async Task WatchGameAsync(int processId, DateTime startedAt)
+    {
+        _gameProcessId = processId;
+        _gameStartedAt = startedAt;
+        _gameJustStopped = false;
+        Refresh();
+
+        while (FeedbackService.IsRunning(processId))
+            await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // Another session may have taken over meanwhile.
+        if (_gameProcessId != processId)
+            return;
+
+        _gameProcessId = null;
+        _gameJustStopped = true;
+        if (!_busy)
+            SetStatus("Game closed", $"played for {Duration(DateTime.Now - _gameStartedAt)}");
+        Refresh();
+
+        await Task.Delay(TimeSpan.FromSeconds(4));
+        if (_gameJustStopped && _gameProcessId is null)
+        {
+            _gameJustStopped = false;
+            Refresh();
+        }
+    }
+
+    private static string Duration(TimeSpan time) =>
+        time.TotalMinutes < 1 ? "under a minute"
+        : time.TotalHours < 1 ? $"{(int)time.TotalMinutes} min"
+        : $"{(int)time.TotalHours} h {time.Minutes} min";
 
     // Runs alongside the game; the launcher stays usable meanwhile.
     private async Task AutoLoginAsync(int processId, string account, string password, int loginPort)
@@ -768,6 +832,56 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             SetStatus("Couldn't remove them", ex.Message);
+        }
+    }
+
+    // Moves the game's screenshots to the Recycle Bin, after asking. Not while
+    // the game runs, and not the ones still waiting to go with a bug report.
+    private void ClearScreenshots_Click(object sender, RoutedEventArgs e)
+    {
+        MorePopup.IsOpen = false;
+        var folder = Path.Combine(_config.ClientLocation, "Screenshots");
+        if (!Directory.Exists(_config.ClientLocation))
+        {
+            SetStatus("No game folder yet", "choose it in Settings");
+            return;
+        }
+        if (FeedbackService.IsGameRunning())
+        {
+            SetStatus("The game is running", "close it first, then clear the screenshots");
+            return;
+        }
+
+        string[] extensions = [".jpg", ".jpeg", ".png", ".tga"];
+        var waiting = _feedback.WaitingScreenshots(_config).Select(f => f.FullName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var files = Directory.Exists(folder)
+            ? new DirectoryInfo(folder).EnumerateFiles()
+                .Where(f => extensions.Contains(f.Extension, StringComparer.OrdinalIgnoreCase) && !waiting.Contains(f.FullName))
+                .ToList()
+            : [];
+        if (files.Count == 0)
+        {
+            SetStatus("No screenshots to clear", waiting.Count > 0 ? "only ones waiting to go with a bug report" : string.Empty);
+            return;
+        }
+
+        var megabytes = files.Sum(f => f.Length) / (1024.0 * 1024.0);
+        var answer = MessageBox.Show(this,
+            $"Move {files.Count} screenshot{(files.Count == 1 ? string.Empty : "s")} ({megabytes:0.#} MB) from the game's Screenshots folder to the Recycle Bin?\n\n" +
+            "You can get them back from the Recycle Bin until it's emptied." +
+            (waiting.Count > 0 ? $" {waiting.Count} still waiting to go with a bug report {(waiting.Count == 1 ? "is" : "are")} kept." : string.Empty),
+            "Clear screenshots", MessageBoxButton.OKCancel, MessageBoxImage.Question);
+        if (answer != MessageBoxResult.OK)
+            return;
+
+        try
+        {
+            RecycleBin.Send(files.Select(f => f.FullName));
+            SetStatus("Screenshots cleared", $"{files.Count} moved to the Recycle Bin");
+        }
+        catch (Exception ex)
+        {
+            SetStatus("Couldn't clear the screenshots", ex.Message);
         }
     }
 

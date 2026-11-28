@@ -37,6 +37,15 @@ public sealed class FeedbackApi : IDisposable
 
     private readonly HttpClient _http;
 
+    // Why the last request failed (for feedback.log), or null.
+    public string? LastError { get; private set; }
+
+    // The innermost message: "The SSL connection could not be established"
+    // alone doesn't say that the certificate didn't match.
+    private static string Describe(Exception ex) => ex.GetBaseException() is var inner && inner != ex
+        ? $"{ex.GetType().Name}: {ex.Message} ({inner.Message})"
+        : $"{ex.GetType().Name}: {ex.Message}";
+
     private FeedbackApi(Uri baseAddress, string certificateSha256)
     {
         var pin = certificateSha256.Replace(":", string.Empty).Trim();
@@ -98,7 +107,10 @@ public sealed class FeedbackApi : IDisposable
             using var request = Request(HttpMethod.Get, $"/v1/reports?since={since}", token);
             using var response = await _http.SendAsync(request, cancellationToken);
             if (!response.IsSuccessStatusCode)
+            {
+                LastError = $"HTTP {(int)response.StatusCode}";
                 return null;
+            }
 
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             var root = json.RootElement;
@@ -110,6 +122,7 @@ public sealed class FeedbackApi : IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or KeyNotFoundException or InvalidOperationException)
         {
+            LastError = Describe(ex);
             return null;
         }
     }
@@ -131,6 +144,7 @@ public sealed class FeedbackApi : IDisposable
             request.Headers.Add("X-Client-Time", Now.ToString());
 
             using var response = await _http.SendAsync(request, cancellationToken);
+            LastError = response.IsSuccessStatusCode ? null : $"HTTP {(int)response.StatusCode}";
             return response.StatusCode switch
             {
                 HttpStatusCode.Created => UploadResult.Sent,
@@ -143,6 +157,7 @@ public sealed class FeedbackApi : IDisposable
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException or UnauthorizedAccessException)
         {
+            LastError = Describe(ex);
             return UploadResult.Failed;
         }
     }

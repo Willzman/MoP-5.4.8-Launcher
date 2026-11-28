@@ -14,7 +14,8 @@ No game files are changed, and the patches are gone when the game closes.
 
 1. Download `MoPLauncher.exe` and put it anywhere you can write to (Desktop, Documents, or the game folder itself).
 2. Run it. The first time, choose your 5.4.8 game folder and enter the server address.
-3. Press **Play**, then log in from the game as usual.
+3. Press **Play**, then log in from the game as usual. While the game runs the button says **Running**;
+   when it closes it says **Stopped** for a moment, then **Play** again.
 
 Windows may show "Windows protected your PC" the first time, because the launcher isn't signed.
 Click **More info**, then **Run anyway**.
@@ -113,6 +114,14 @@ Nothing from before you first ran a launcher with this feature is sent, and noth
 twice (`%AppData%\MoPLauncher\feedback.json` remembers what went). What a session left while
 the launcher was closed goes the next time it starts. Turn it all off with **Send my bug
 reports' screenshots, crash logs and add-on errors to the realm** in Settings.
+
+While the game runs, the launcher also looks for a report's screenshot every minute, in case it
+missed the picture being taken; and if you closed the launcher while playing, opening it again picks
+the game up, and coming back to its window sends what it missed. Each step is written to `%AppData%\MoPLauncher\feedback.log` (never the token).
+
+**Clear screenshots** (next to **Open AddOns folder**, and in the ··· menu) moves the game's
+screenshots to the Recycle Bin after asking, but not while the game runs, and not the ones
+still waiting to go with a bug report.
 
 ## What it patches
 

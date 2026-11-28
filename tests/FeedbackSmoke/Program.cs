@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using MoPLauncher;
 using MoPLauncher.Config;
 using MoPLauncher.Feedback;
 
@@ -12,7 +13,9 @@ using MoPLauncher.Feedback;
 // token. Checks that only the screenshot taken at the report is sent, crash
 // log + dump and Lua errors go once, nothing goes twice, nothing goes to a
 // server with the wrong certificate or with uploads off, and the
-// Screenshots watcher sends a picture taken while "the game" runs.
+// Screenshots watcher sends a picture taken while "the game" runs, the
+// every-minute check runs during it, feedback.log says what happened, and
+// RecycleBin moves a file to the Recycle Bin.
 
 if (args.Length != 5)
 {
@@ -80,15 +83,15 @@ try
     var service = new FeedbackService(statePath);
     var sent = new List<string>();
     service.Sent += sent.Add;
-    await service.RunAsync(wrongPin, sessionOver: true);
+    await service.RunAsync(wrongPin, sessionOver: true, "smoke");
     Check(sent.Count == 0, "wrong certificate: nothing sent");
 
     // Uploads off.
-    await service.RunAsync(new LauncherConfig { ClientLocation = client, ServerAddress = server, FeedbackUploads = false }, sessionOver: true);
+    await service.RunAsync(new LauncherConfig { ClientLocation = client, ServerAddress = server, FeedbackUploads = false }, sessionOver: true, "smoke");
     Check(sent.Count == 0, "uploads off: nothing sent");
 
     // The real thing.
-    await service.RunAsync(config, sessionOver: true);
+    await service.RunAsync(config, sessionOver: true, "smoke");
     Console.WriteLine($"     sent: {string.Join(" | ", sent)}");
     Check(sent.Count == 1 && sent[0] == "a bug report screenshot, a crash log and the add-on errors", "screenshot, crash log and Lua errors sent");
     var state = FeedbackState.Load(statePath);
@@ -97,20 +100,47 @@ try
 
     // Again: nothing new.
     sent.Clear();
-    await service.RunAsync(config, sessionOver: true);
+    await service.RunAsync(config, sessionOver: true, "smoke");
     Check(sent.Count == 0, "second run sends nothing");
+
+    // The add-on bumps its session number at every login: not a new error.
+    var luaFile = Path.Combine(saved, "!ErrorCatcher.lua");
+    File.WriteAllText(luaFile, File.ReadAllText(luaFile).Replace("ErrorCatcherDB = {\n", "ErrorCatcherDB = {\n\t[\"session\"] = 9,\n"));
+    await service.RunAsync(config, sessionOver: true, "smoke");
+    Check(sent.Count == 0, "Lua errors: a new session number alone sends nothing");
+
+    // The same error again: its count goes up, and that is sent.
+    File.WriteAllText(luaFile, File.ReadAllText(luaFile).Replace("[\"count\"] = 2,", "[\"count\"] = 3,"));
+    await service.RunAsync(config, sessionOver: true, "smoke");
+    Check(sent.Count == 1 && sent[0] == "the add-on errors", "Lua errors: a higher count is sent");
+    sent.Clear();
 
     // A session: a screenshot taken while "the game" runs goes out through the
     // watcher; the session's end is when the process exits.
-    using var game = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Start-Sleep 25") { CreateNoWindow = true })!;
+    using var game = Process.Start(new ProcessStartInfo("powershell", "-NoProfile -Command Start-Sleep 80") { CreateNoWindow = true })!;
     service.WatchSession(config, game.Id);
     await Task.Delay(1000);
     Picture("WoWScrnShot_watched.jpg", now.AddSeconds(-1), 3);
+    // An ordinary screenshot: waits all session long, so the minute check sees it.
+    Picture("WoWScrnShot_ordinary.jpg", DateTime.UtcNow.AddMinutes(-30), 4);
     await Task.Delay(TimeSpan.FromSeconds(15));
     Check(sent.Contains("a bug report screenshot"), "watcher sent the screenshot taken during the session");
     await game.WaitForExitAsync();
-    await Task.Delay(TimeSpan.FromSeconds(10));
+    await Task.Delay(TimeSpan.FromSeconds(15));
     Check(FeedbackState.Load(statePath).IsHandled(new FileInfo(Path.Combine(screenshots, "WoWScrnShot_watched.jpg"))), "watched screenshot done with");
+
+    var log = File.ReadAllText(Path.Combine(client, "feedback.log"));
+    Console.WriteLine("     feedback.log:");
+    foreach (var line in log.Trim().Split('\n'))
+        Console.WriteLine("       " + line.TrimEnd());
+    foreach (var expected in new[] { "game started", "WoWScrnShot_watched.jpg created", "new screenshot:", "-> Sent", "every minute:", "game closed", "smoke: " + account, "smoke: crash log smoke Crash - 1.txt -> Sent", "smoke: crash dump smoke Crash - 1.dmp -> Sent", "smoke: " + account + "'s Lua errors -> Sent" })
+        Check(log.Contains(expected), $"feedback.log has \"{expected}\"");
+    Check(!log.Contains(token), "feedback.log never has the token");
+
+    var junk = Path.Combine(client, "feedbacksmoke-recycle-test.txt");
+    File.WriteAllText(junk, "FeedbackSmoke: safe to delete");
+    RecycleBin.Send([junk]);
+    Check(!File.Exists(junk), "RecycleBin moved the test file away");
 }
 finally
 {

@@ -22,7 +22,9 @@ namespace MoPLauncher.Feedback;
 // Report add-on (WTF\Account\<ACCOUNT>\SavedVariables\BugReport.lua); without
 // one, nothing is sent. The game writes SavedVariables when it closes, so the
 // very first token shows up only then. What happened while the launcher was
-// closed is picked up the next time it starts.
+// closed is picked up the next time it starts. Each pass that has something
+// to do (or hits a problem) leaves a line in feedback.log next to config.json;
+// tokens are never written there.
 public sealed partial class FeedbackService
 {
     private static readonly string[] ScreenshotExtensions = [".jpg", ".jpeg", ".png", ".tga"];
@@ -32,15 +34,52 @@ public sealed partial class FeedbackService
     private readonly FeedbackState _state;
     private FileSystemWatcher? _watcher;
     private CancellationTokenSource? _settle;
+    private DateTime _lastWindowPass = DateTime.MinValue;
+
+    // While the game runs, new screenshots are looked for this often anyway,
+    // in case the watcher missed one.
+    private static readonly TimeSpan SessionCheck = TimeSpan.FromMinutes(1);
 
     // statePath: where to keep what was sent (tests use their own file).
-    public FeedbackService(string? statePath = null) => _state = FeedbackState.Load(statePath);
+    public FeedbackService(string? statePath = null)
+    {
+        _state = FeedbackState.Load(statePath);
+        LogPath = Path.Combine(Path.GetDirectoryName(statePath ?? FeedbackState.DefaultPath)!, "feedback.log");
+    }
 
     // Tells the window what was sent ("1 screenshot and 2 crash logs").
     public event Action<string>? Sent;
 
     [GeneratedRegex(@"\[""token""\]\s*=\s*""([0-9A-Fa-f]{64})""")]
     private static partial Regex TokenPattern();
+
+    // ---- Log -----------------------------------------------------------------
+
+    private static readonly object LogLock = new();
+    // Next to the state file (feedback.json), so tests keep their own.
+    private static string LogPath = Path.Combine(Path.GetDirectoryName(FeedbackState.DefaultPath)!, "feedback.log");
+
+    // One line in feedback.log; past 256 KB the older half is dropped.
+    private static void Log(string line)
+    {
+        try
+        {
+            lock (LogLock)
+            {
+                var info = new FileInfo(LogPath);
+                if (info.Exists && info.Length > 256 * 1024)
+                {
+                    var lines = File.ReadAllLines(LogPath);
+                    File.WriteAllLines(LogPath, lines[(lines.Length / 2)..]);
+                }
+                File.AppendAllText(LogPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {line}{Environment.NewLine}");
+            }
+        }
+        catch (Exception)
+        {
+            // Logging must never stop an upload.
+        }
+    }
 
     // ---- Tokens --------------------------------------------------------------
 
@@ -60,13 +99,16 @@ public sealed partial class FeedbackService
                 var saved = Path.Combine(folder, "SavedVariables", "BugReport.lua");
                 if (!File.Exists(saved))
                     continue;
-                var match = TokenPattern().Match(File.ReadAllText(saved));
+                // Shared, in case the game has the file open.
+                using var stream = new FileStream(saved, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                var match = TokenPattern().Match(reader.ReadToEnd());
                 if (match.Success)
                     tokens[Path.GetFileName(folder)] = match.Groups[1].Value;
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // In use or unreadable: next time.
+                Log($"can't read {Path.GetFileName(folder)}'s BugReport.lua: {ex.Message}");
             }
         }
         return tokens;
@@ -96,39 +138,115 @@ public sealed partial class FeedbackService
         {
             var screenshots = Path.Combine(clientLocation, "Screenshots");
             Directory.CreateDirectory(screenshots);
-            _watcher = new FileSystemWatcher(screenshots) { IncludeSubdirectories = false, EnableRaisingEvents = true };
-            _watcher.Created += (_, _) => ScreenshotTaken(config);
-            _watcher.Renamed += (_, _) => ScreenshotTaken(config);
+            var watcher = new FileSystemWatcher(screenshots) { IncludeSubdirectories = false };
+            watcher.Created += (_, e) => ScreenshotTaken(config, e.Name, "created");
+            watcher.Renamed += (_, e) => ScreenshotTaken(config, e.Name, "renamed");
+            watcher.Error += (_, e) => Log($"Screenshots watcher error: {e.GetException().Message}");
+            watcher.EnableRaisingEvents = true;
+            _watcher = watcher;
+            Log($"game started (process {processId}); watching {screenshots}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
             _watcher = null;
+            Log($"game started (process {processId}); Screenshots can't be watched: {ex.Message}");
         }
 
         _ = Task.Run(async () =>
         {
-            try
+            // Polled rather than waited on, so there's a check every minute
+            // while it plays, whatever the watcher does.
+            var nextCheck = DateTime.UtcNow + SessionCheck;
+            while (IsRunning(processId))
             {
-                using var game = Process.GetProcessById(processId);
-                await game.WaitForExitAsync();
-            }
-            catch (ArgumentException)
-            {
-                // Already gone.
+                await Task.Delay(TimeSpan.FromSeconds(5));
+                if (DateTime.UtcNow >= nextCheck)
+                {
+                    nextCheck = DateTime.UtcNow + SessionCheck;
+                    await RunAsync(config, sessionOver: false, "every minute");
+                }
             }
 
             StopWatching();
+            Log($"game closed (process {processId})");
             // The game writes its SavedVariables as it closes.
             await Task.Delay(TimeSpan.FromSeconds(5));
-            await RunAsync(config, sessionOver: true);
+            await RunAsync(config, sessionOver: true, "game closed");
         });
     }
+
+    // True while the process is there. One we may not look into still counts.
+    public static bool IsRunning(int processId)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(processId);
+            return !process.HasExited;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+        catch (Exception)
+        {
+            return true;
+        }
+    }
+
+    // The process id of a running copy of the game, or null.
+    public static int? FindRunningGame()
+    {
+        foreach (var name in new[] { "Wow-64", "Wow" })
+        {
+            var found = Process.GetProcessesByName(name);
+            var id = found.Length > 0 ? found[0].Id : (int?)null;
+            foreach (var process in found)
+                process.Dispose();
+            if (id is not null)
+                return id;
+        }
+        return null;
+    }
+
+    // True while any copy of the game runs, one this launcher didn't start too.
+    public static bool IsGameRunning()
+    {
+        foreach (var name in new[] { "Wow-64", "Wow" })
+        {
+            var found = Process.GetProcessesByName(name);
+            foreach (var process in found)
+                process.Dispose();
+            if (found.Length > 0)
+                return true;
+        }
+        return false;
+    }
+
+    // When the launcher's window comes back to the front: a pass, at most
+    // every 30 s. With no game running it's a full one (crash logs and Lua
+    // errors too), which covers a session the launcher wasn't open for.
+    public void WindowActivated(LauncherConfig config)
+    {
+        if (DateTime.UtcNow - _lastWindowPass < TimeSpan.FromSeconds(30))
+            return;
+        _lastWindowPass = DateTime.UtcNow;
+        var sessionOver = !IsGameRunning();
+        _ = Task.Run(() => RunAsync(config, sessionOver, "launcher window"));
+    }
+
+    // Screenshots still waiting to be matched with a bug report and sent:
+    // Clear screenshots keeps these. None when uploads are off.
+    public IReadOnlyList<FileInfo> WaitingScreenshots(LauncherConfig config) =>
+        config.FeedbackUploads
+            ? NewFiles(Path.Combine(config.ClientLocation, "Screenshots"), ScreenshotExtensions).ToList()
+            : [];
 
     // A screenshot is written a moment before the report reaches the server;
     // look a few seconds later, once both are done. Several in a row wait
     // for the last one.
-    private void ScreenshotTaken(LauncherConfig config)
+    private void ScreenshotTaken(LauncherConfig config, string? name, string how)
     {
+        Log($"Screenshots: {name} {how}");
         _settle?.Cancel();
         var settle = _settle = new CancellationTokenSource();
         _ = Task.Run(async () =>
@@ -141,7 +259,7 @@ public sealed partial class FeedbackService
             {
                 return;
             }
-            await RunAsync(config, sessionOver: false);
+            await RunAsync(config, sessionOver: false, "new screenshot");
         });
     }
 
@@ -155,7 +273,7 @@ public sealed partial class FeedbackService
 
     // One pass: screenshots, then (once the session is over, or when the
     // launcher starts) crash logs and Lua errors. Never throws.
-    public async Task RunAsync(LauncherConfig config, bool sessionOver)
+    public async Task RunAsync(LauncherConfig config, bool sessionOver, string trigger)
     {
         if (!config.FeedbackUploads || !Directory.Exists(config.ClientLocation))
             return;
@@ -165,19 +283,26 @@ public sealed partial class FeedbackService
         {
             using var api = FeedbackApi.For(config);
             if (api is null)
+            {
+                Log($"{trigger}: no feedback API for server '{config.ServerAddress}' (or no certificate to pin)");
                 return;
+            }
 
             var tokens = Tokens(config.ClientLocation);
             if (tokens.Count == 0)
+            {
+                if (sessionOver)
+                    Log($"{trigger}: no account has an upload token yet");
                 return;
+            }
 
-            var screenshots = await SendScreenshotsAsync(api, config.ClientLocation, tokens, sessionOver);
+            var screenshots = await SendScreenshotsAsync(api, config.ClientLocation, tokens, sessionOver, trigger);
             var crashes = 0;
             var luaErrors = false;
             if (sessionOver)
             {
-                crashes = await SendCrashLogsAsync(api, config, tokens);
-                luaErrors = await SendLuaErrorsAsync(api, config.ClientLocation, tokens);
+                crashes = await SendCrashLogsAsync(api, config, tokens, trigger);
+                luaErrors = await SendLuaErrorsAsync(api, config.ClientLocation, tokens, trigger);
             }
             _state.Save();
 
@@ -191,9 +316,10 @@ public sealed partial class FeedbackService
             if (parts.Count > 0)
                 Sent?.Invoke(parts.Count == 1 ? parts[0] : string.Join(", ", parts[..^1]) + " and " + parts[^1]);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Feedback must never get in the way of playing; next time.
+            Log($"{trigger}: failed: {ex.GetType().Name}: {ex.Message}");
         }
         finally
         {
@@ -217,11 +343,12 @@ public sealed partial class FeedbackService
 
     // Sends the screenshots taken just before one of an account's reports.
     // At the end of a session, the others are set aside for good.
-    private async Task<int> SendScreenshotsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens, bool sessionOver)
+    private async Task<int> SendScreenshotsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens, bool sessionOver, string trigger)
     {
         var files = NewFiles(Path.Combine(clientLocation, "Screenshots"), ScreenshotExtensions).ToList();
         if (files.Count == 0)
             return 0;
+        Log($"{trigger}: {files.Count} new screenshot(s); accounts with a token: {string.Join(", ", tokens.Keys)}");
 
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var since = new DateTimeOffset(files[0].LastWriteTimeUtc).ToUnixTimeSeconds() - 3600;
@@ -229,14 +356,16 @@ public sealed partial class FeedbackService
         var askedAll = true;
         var matched = new HashSet<FileInfo>();
 
-        foreach (var token in tokens.Values.Distinct())
+        foreach (var (account, token) in tokens)
         {
             var reports = await api.GetReportsAsync(token, since);
             if (reports is null)
             {
+                Log($"{trigger}: {account}: couldn't get its reports: {api.LastError}");
                 askedAll = false;
                 continue;
             }
+            Log($"{trigger}: {account}: {reports.Reports.Count} recent report(s), PC clock off by {reports.ServerTime - now} s");
 
             // The PC's clock may be off from the server's.
             var offset = reports.ServerTime - now;
@@ -248,6 +377,7 @@ public sealed partial class FeedbackService
 
                 matched.Add(file);
                 var result = await api.UploadAsync("screenshot", file.FullName, token);
+                Log($"{trigger}: {file.Name} -> {result}{(result == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
                 if (result == UploadResult.Sent)
                     sent++;
                 if (result is UploadResult.Sent or UploadResult.Duplicate or UploadResult.Refused or UploadResult.NotMatched)
@@ -268,7 +398,7 @@ public sealed partial class FeedbackService
 
     // Sends new crash logs (and their dumps, if wanted) under the account
     // that played last.
-    private async Task<int> SendCrashLogsAsync(FeedbackApi api, LauncherConfig config, Dictionary<string, string> tokens)
+    private async Task<int> SendCrashLogsAsync(FeedbackApi api, LauncherConfig config, Dictionary<string, string> tokens, string trigger)
     {
         var token = TokenOfLastAccount(config.ClientLocation, tokens);
         if (token is null)
@@ -278,6 +408,7 @@ public sealed partial class FeedbackService
         foreach (var log in NewFiles(Path.Combine(config.ClientLocation, "Errors"), [".txt"]))
         {
             var result = await api.UploadAsync("crash", log.FullName, token);
+            Log($"{trigger}: crash log {log.Name} -> {result}{(result == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
             if (result is UploadResult.Failed or UploadResult.Unauthorized)
                 continue;
 
@@ -286,16 +417,49 @@ public sealed partial class FeedbackService
             if (config.FeedbackUploadDumps && result is UploadResult.Sent or UploadResult.Duplicate)
             {
                 var dump = Path.ChangeExtension(log.FullName, ".dmp");
-                if (File.Exists(dump) && await api.UploadAsync("crash-dump", dump, token) == UploadResult.Failed)
-                    continue; // log and dump next time; the server knows the log already
+                if (File.Exists(dump))
+                {
+                    var dumpResult = await api.UploadAsync("crash-dump", dump, token);
+                    Log($"{trigger}: crash dump {Path.GetFileName(dump)} -> {dumpResult}{(dumpResult == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
+                    if (dumpResult == UploadResult.Failed)
+                        continue; // log and dump next time; the server knows the log already
+                }
             }
             _state.MarkHandled(log);
         }
         return sent;
     }
 
-    // Sends each account's Error Catcher list when it changed since last time.
-    private async Task<bool> SendLuaErrorsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens)
+    [GeneratedRegex(@"^\t\t(\[.*\]) = \{\s*$")]
+    private static partial Regex LuaErrorKey();
+
+    [GeneratedRegex(@"^\t\t\t\[""count""\] = (\d+),")]
+    private static partial Regex LuaErrorCount();
+
+    // "<error key> <count>" for each error in an Error Catcher file, as the
+    // game writes it (the errors two tabs in, their fields three).
+    private static List<string> LuaErrorCounts(string text)
+    {
+        var counts = new List<string>();
+        string? key = null;
+        foreach (var line in text.Split('\n'))
+        {
+            var keyMatch = LuaErrorKey().Match(line.TrimEnd('\r'));
+            if (keyMatch.Success)
+            {
+                key = keyMatch.Groups[1].Value;
+                continue;
+            }
+            var countMatch = LuaErrorCount().Match(line);
+            if (countMatch.Success && key is not null)
+                counts.Add($"{key} {countMatch.Groups[1].Value}");
+        }
+        return counts;
+    }
+
+    // Sends each account's Error Catcher list when an error is new or its
+    // count went up since last time.
+    private async Task<bool> SendLuaErrorsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens, string trigger)
     {
         var sentAny = false;
         foreach (var (account, token) in tokens)
@@ -311,21 +475,29 @@ public sealed partial class FeedbackService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                Log($"{trigger}: can't read {account}'s !ErrorCatcher.lua: {ex.Message}");
                 continue;
             }
 
-            var hash = Convert.ToHexString(SHA256.HashData(bytes));
+            // What's new is judged by the errors and their counts only: the
+            // add-on bumps its session number at every login, and the game
+            // may save the keys in another order, which would make every
+            // session look new.
+            var counts = LuaErrorCounts(System.Text.Encoding.Latin1.GetString(bytes));
+            var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+                string.Join("\n", counts.OrderBy(c => c, StringComparer.Ordinal)))));
             if (_state.LuaErrorsSent.TryGetValue(account, out var last) && last == hash)
                 continue;
 
-            // Every kept error has a count; no count, no errors to send.
-            if (!System.Text.Encoding.Latin1.GetString(bytes).Contains("[\"count\"]"))
+            // No errors kept, nothing to send.
+            if (counts.Count == 0)
             {
                 _state.LuaErrorsSent[account] = hash;
                 continue;
             }
 
             var result = await api.UploadAsync("lua-errors", path, token);
+            Log($"{trigger}: {account}'s Lua errors -> {result}{(result == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
             if (result is UploadResult.Sent or UploadResult.Duplicate or UploadResult.Refused)
             {
                 _state.LuaErrorsSent[account] = hash;

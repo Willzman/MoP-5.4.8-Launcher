@@ -94,6 +94,9 @@
                         <Button Style="{StaticResource LinkButton}" Content="Open AddOns folder"
                                 Click="OpenAddOnsFolder_Click"/>
                         <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Clear screenshots"
+                                Click="ClearScreenshots_Click"/>
+                        <TextBlock Text="·" FontSize="13" Margin="9,0" Foreground="{StaticResource MutedBrush}"/>
                         <Button Style="{StaticResource LinkButton}" Content="Settings" Click="OpenSettings_Click"/>
                     </StackPanel>
                 </StackPanel>
@@ -171,6 +174,8 @@
                                     Click="OpenGameFolder_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Open AddOns folder"
                                     Click="OpenAddOnsFolder_Click"/>
+                            <Button Style="{StaticResource MenuRow}" Content="Clear screenshots"
+                                    Click="ClearScreenshots_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Clear game cache"
                                     Click="ClearCache_Click"/>
                             <Button Style="{StaticResource MenuRow}" Content="Remove server add-ons and patches"

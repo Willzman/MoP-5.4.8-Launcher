@@ -3,6 +3,14 @@
 Each `## version` section becomes the notes of that release, and is what the
 launcher shows in its "What's new" panel.
 
+## 1.9.0
+
+- While the game runs, **Play** says **Running**; when you close the game it says **Stopped** for a moment, and the status line says how long you played. A game that's already running when the launcher opens is picked up too.
+- A bug report's screenshot is sent while you play again: the launcher also looks every minute, in case it missed the picture being taken.
+- Closed the launcher while playing? When you open it again it picks the game up, and sends its bug report screenshots (and, once the game is closed, crash logs and add-on errors) when you come back to its window.
+- New **Clear screenshots** next to **Open AddOns folder** (and in the ··· menu): moves the game's screenshots to the Recycle Bin, after asking. Screenshots still waiting to go with a bug report are kept.
+- What the bug report uploads did is written to `feedback.log` next to the launcher's settings, to help find problems.
+
 ## 1.8.0
 
 - When you send a bug report with the in-game bug button, the launcher sends its screenshot to the realm's developers. Your other screenshots never leave your PC.
