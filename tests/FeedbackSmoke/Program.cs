@@ -121,7 +121,7 @@ try
     Console.WriteLine("     feedback.log:");
     foreach (var line in log.Trim().Split('\n'))
         Console.WriteLine("       " + line.TrimEnd());
-    foreach (var expected in new[] { "game started", "WoWScrnShot_watched.jpg created", "new screenshot:", "-> Sent", "every minute:", "game closed", "smoke: " + account })
+    foreach (var expected in new[] { "game started", "WoWScrnShot_watched.jpg created", "new screenshot:", "-> Sent", "every minute:", "game closed", "smoke: " + account, "smoke: crash log smoke Crash - 1.txt -> Sent", "smoke: crash dump smoke Crash - 1.dmp -> Sent", "smoke: " + account + "'s Lua errors -> Sent" })
         Check(log.Contains(expected), $"feedback.log has \"{expected}\"");
     Check(!log.Contains(token), "feedback.log never has the token");
 

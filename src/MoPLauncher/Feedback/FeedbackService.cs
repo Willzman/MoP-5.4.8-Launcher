@@ -286,8 +286,8 @@ public sealed partial class FeedbackService
             var luaErrors = false;
             if (sessionOver)
             {
-                crashes = await SendCrashLogsAsync(api, config, tokens);
-                luaErrors = await SendLuaErrorsAsync(api, config.ClientLocation, tokens);
+                crashes = await SendCrashLogsAsync(api, config, tokens, trigger);
+                luaErrors = await SendLuaErrorsAsync(api, config.ClientLocation, tokens, trigger);
             }
             _state.Save();
 
@@ -383,7 +383,7 @@ public sealed partial class FeedbackService
 
     // Sends new crash logs (and their dumps, if wanted) under the account
     // that played last.
-    private async Task<int> SendCrashLogsAsync(FeedbackApi api, LauncherConfig config, Dictionary<string, string> tokens)
+    private async Task<int> SendCrashLogsAsync(FeedbackApi api, LauncherConfig config, Dictionary<string, string> tokens, string trigger)
     {
         var token = TokenOfLastAccount(config.ClientLocation, tokens);
         if (token is null)
@@ -393,6 +393,7 @@ public sealed partial class FeedbackService
         foreach (var log in NewFiles(Path.Combine(config.ClientLocation, "Errors"), [".txt"]))
         {
             var result = await api.UploadAsync("crash", log.FullName, token);
+            Log($"{trigger}: crash log {log.Name} -> {result}{(result == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
             if (result is UploadResult.Failed or UploadResult.Unauthorized)
                 continue;
 
@@ -401,8 +402,13 @@ public sealed partial class FeedbackService
             if (config.FeedbackUploadDumps && result is UploadResult.Sent or UploadResult.Duplicate)
             {
                 var dump = Path.ChangeExtension(log.FullName, ".dmp");
-                if (File.Exists(dump) && await api.UploadAsync("crash-dump", dump, token) == UploadResult.Failed)
-                    continue; // log and dump next time; the server knows the log already
+                if (File.Exists(dump))
+                {
+                    var dumpResult = await api.UploadAsync("crash-dump", dump, token);
+                    Log($"{trigger}: crash dump {Path.GetFileName(dump)} -> {dumpResult}{(dumpResult == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
+                    if (dumpResult == UploadResult.Failed)
+                        continue; // log and dump next time; the server knows the log already
+                }
             }
             _state.MarkHandled(log);
         }
@@ -410,7 +416,7 @@ public sealed partial class FeedbackService
     }
 
     // Sends each account's Error Catcher list when it changed since last time.
-    private async Task<bool> SendLuaErrorsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens)
+    private async Task<bool> SendLuaErrorsAsync(FeedbackApi api, string clientLocation, Dictionary<string, string> tokens, string trigger)
     {
         var sentAny = false;
         foreach (var (account, token) in tokens)
@@ -426,6 +432,7 @@ public sealed partial class FeedbackService
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                Log($"{trigger}: can't read {account}'s !ErrorCatcher.lua: {ex.Message}");
                 continue;
             }
 
@@ -441,6 +448,7 @@ public sealed partial class FeedbackService
             }
 
             var result = await api.UploadAsync("lua-errors", path, token);
+            Log($"{trigger}: {account}'s Lua errors -> {result}{(result == UploadResult.Failed ? ": " + api.LastError : string.Empty)}");
             if (result is UploadResult.Sent or UploadResult.Duplicate or UploadResult.Refused)
             {
                 _state.LuaErrorsSent[account] = hash;
